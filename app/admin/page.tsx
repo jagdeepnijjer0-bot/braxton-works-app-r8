@@ -158,9 +158,9 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card px-6 py-4">
+      <header className="border-b border-white/30 glass px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-primary/90 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg shadow-primary/30">
             <span className="text-primary-foreground font-bold text-lg">B</span>
           </div>
           <div>
@@ -175,9 +175,9 @@ export default function AdminDashboard() {
         <main className="flex-1 p-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-card rounded-xl border border-border p-4">
+            <div className="glass-card rounded-xl border-2 border-white/40 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
                   <LayoutDashboard className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
@@ -186,9 +186,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="bg-card rounded-xl border border-border p-4">
+            <div className="glass-card rounded-xl border-2 border-white/40 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-amber-50/80 backdrop-blur-sm border border-amber-200/40 flex items-center justify-center">
                   <AlertCircle className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
@@ -197,9 +197,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="bg-card rounded-xl border border-border p-4">
+            <div className="glass-card rounded-xl border-2 border-white/40 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 backdrop-blur-sm border border-primary/20 flex items-center justify-center">
                   <Clock className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -208,9 +208,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="bg-card rounded-xl border border-border p-4">
+            <div className="glass-card rounded-xl border-2 border-white/40 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-emerald-50/80 backdrop-blur-sm border border-emerald-200/40 flex items-center justify-center">
                   <CheckCircle className="h-5 w-5 text-emerald-500" />
                 </div>
                 <div>
@@ -230,7 +230,7 @@ export default function AdminDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search jobs..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg glass-input text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as FilterStatus)}
-                className="px-3 py-2.5 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:outline-none"
+                className="px-3 py-2.5 rounded-lg glass-input text-foreground focus:outline-none"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -249,9 +249,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Jobs Table */}
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="glass-card rounded-xl border-2 border-white/40 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-muted/50">
+              <thead className="bg-white/50 backdrop-blur-sm">
                 <tr>
                   <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Customer</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Type</th>
@@ -268,8 +268,8 @@ export default function AdminDashboard() {
                     <tr
                       key={job.id}
                       className={cn(
-                        "border-t border-border hover:bg-muted/30 cursor-pointer transition-colors",
-                        selectedJob?.id === job.id && "bg-muted/50"
+                        "border-t border-white/30 hover:bg-white/50 cursor-pointer transition-colors",
+                        selectedJob?.id === job.id && "bg-white/60"
                       )}
                       onClick={() => setSelectedJob(job)}
                     >
@@ -293,16 +293,15 @@ export default function AdminDashboard() {
                         <span className="text-sm text-muted-foreground">{job.date}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
                             setSelectedJob(job)
                           }}
+                          className="px-3 py-1.5 text-sm font-medium rounded-lg glass-button border border-white/40 hover:bg-white/80 transition-all text-foreground"
                         >
                           View
-                        </Button>
+                        </button>
                       </td>
                     </tr>
                   )
@@ -314,12 +313,12 @@ export default function AdminDashboard() {
 
         {/* Job Detail Panel */}
         {selectedJob && (
-          <aside className="w-96 border-l border-border bg-card p-6 overflow-y-auto max-h-[calc(100vh-73px)]">
+          <aside className="w-96 border-l border-white/30 glass p-6 overflow-y-auto max-h-[calc(100vh-73px)]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Job Details</h2>
               <button
                 onClick={() => setSelectedJob(null)}
-                className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
+                className="h-8 w-8 rounded-lg glass-button border border-white/40 hover:bg-white/80 flex items-center justify-center transition-all"
               >
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -331,7 +330,7 @@ export default function AdminDashboard() {
               <select
                 value={selectedJob.status}
                 onChange={(e) => updateJobStatus(selectedJob.id, e.target.value as JobStatus)}
-                className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground focus:border-primary focus:outline-none"
+                className="w-full px-3 py-2.5 rounded-lg glass-input text-foreground focus:outline-none"
               >
                 <option value="pending">Pending</option>
                 <option value="in-progress">In Progress</option>
@@ -364,7 +363,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-medium text-muted-foreground mb-3">Notes & Updates</h3>
               <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
                 {selectedJob.notes.map((note, i) => (
-                  <div key={i} className="bg-muted rounded-lg p-3">
+                  <div key={i} className="bg-white/50 backdrop-blur-sm rounded-lg p-3 border border-white/40">
                     <p className="text-sm text-foreground">{note.text}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {note.author} • {note.date}
@@ -381,11 +380,11 @@ export default function AdminDashboard() {
                   onChange={(e) => setNewNote(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addNote()}
                   placeholder="Add a note..."
-                  className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none text-sm"
+                  className="flex-1 px-3 py-2 rounded-lg glass-input text-foreground placeholder:text-muted-foreground focus:outline-none text-sm"
                 />
-                <Button size="sm" onClick={addNote} disabled={!newNote.trim()}>
+                <button onClick={addNote} disabled={!newNote.trim()} className="px-3 py-2 rounded-lg bg-primary/90 backdrop-blur-sm border border-white/20 text-primary-foreground disabled:opacity-50 shadow-lg shadow-primary/30">
                   <Send className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             </div>
           </aside>
