@@ -40,9 +40,9 @@ export function MessagesScreen() {
   return (
     <div className="min-h-screen pb-24 flex flex-col">
       {/* Header */}
-      <div className="px-6 pt-8 pb-4 border-b border-border">
-        <h1 className="text-2xl font-bold text-foreground">Messages</h1>
-        <p className="text-sm text-muted-foreground mt-1">Chat with Braxton Works</p>
+      <div className="px-6 pt-8 pb-4 border-b border-[#E8ECF0] bg-white/95 backdrop-blur-xl">
+        <h1 className="text-2xl font-bold text-[#1E1E1E]">Messages</h1>
+        <p className="text-sm text-[#5A6A7A] mt-1">Chat with Braxton Works</p>
       </div>
 
       {/* Messages */}
@@ -59,15 +59,15 @@ export function MessagesScreen() {
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-3",
                 message.sender === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-md"
-                  : "bg-muted text-foreground rounded-bl-md"
+                  ? "bg-[#6CB4EE] text-white rounded-br-md"
+                  : "bg-white border border-[#E8ECF0] text-[#1E1E1E] rounded-bl-md shadow-sm"
               )}
             >
               <p className="text-sm">{message.text}</p>
               <p
                 className={cn(
                   "text-xs mt-1",
-                  message.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
+                  message.sender === "user" ? "text-white/70" : "text-[#9CA3AF]"
                 )}
               >
                 {formatTime(message.timestamp)}
@@ -78,7 +78,7 @@ export function MessagesScreen() {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 border-t border-border bg-card">
+      <div className="px-6 py-4 border-t border-[#E8ECF0] bg-white/95 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <input
             type="text"
@@ -86,14 +86,14 @@ export function MessagesScreen() {
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 p-3 rounded-xl border-2 border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="flex-1 p-3 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] placeholder:text-[#9CA3AF] focus:border-[#6CB4EE] focus:ring-1 focus:ring-[#6CB4EE]/20 focus:outline-none"
           />
           <button
             onClick={handleSend}
             disabled={!newMessage.trim()}
-            className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 w-12 rounded-xl bg-[#6CB4EE] hover:bg-[#5AA3DD] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
-            <Send className="h-5 w-5 text-primary-foreground" />
+            <Send className="h-5 w-5 text-white" />
           </button>
         </div>
       </div>
