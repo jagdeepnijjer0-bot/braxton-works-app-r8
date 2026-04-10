@@ -59,7 +59,7 @@ export function MessagesScreen() {
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-3",
                 message.sender === "user"
-                  ? "bg-[#6CB4EE] text-white rounded-br-md"
+                  ? "bg-[#6EC6FF] text-white rounded-br-md"
                   : "bg-white border border-[#E8ECF0] text-[#1E1E1E] rounded-bl-md shadow-sm"
               )}
             >
@@ -86,12 +86,12 @@ export function MessagesScreen() {
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 p-3 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] placeholder:text-[#9CA3AF] focus:border-[#6CB4EE] focus:ring-1 focus:ring-[#6CB4EE]/20 focus:outline-none"
+            className="flex-1 p-3 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] placeholder:text-[#9CA3AF] focus:border-[#6EC6FF] focus:ring-1 focus:ring-[#6EC6FF]/20 focus:outline-none"
           />
           <button
             onClick={handleSend}
             disabled={!newMessage.trim()}
-            className="h-12 w-12 rounded-xl bg-[#6CB4EE] hover:bg-[#5AA3DD] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="h-12 w-12 rounded-xl bg-[#6EC6FF] hover:bg-[#5BB8F5] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             <Send className="h-5 w-5 text-white" />
           </button>

@@ -12,7 +12,7 @@ const statusIcons = {
 
 const statusColors = {
   pending: "text-amber-500 bg-amber-50",
-  "in-progress": "text-[#6CB4EE] bg-[#E8F4FD]",
+  "in-progress": "text-[#6EC6FF] bg-[#E3F3FF]",
   completed: "text-emerald-500 bg-emerald-50",
 }
 
@@ -99,7 +99,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           <div className="space-y-3">
             {job.updates.map((update, i) => (
               <div key={i} className="flex gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#6CB4EE] mt-2 flex-shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-[#6EC6FF] mt-2 flex-shrink-0" />
                 <div>
                   <p className="text-[#1E1E1E] text-sm">{update.message}</p>
                   <p className="text-xs text-[#9CA3AF] mt-0.5">{update.date}</p>
@@ -114,7 +114,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-[#5A6A7A]">Messages</h3>
-              <span className="text-xs text-[#6CB4EE] font-medium">{jobMessages.length} messages</span>
+              <span className="text-xs text-[#6EC6FF] font-medium">{jobMessages.length} messages</span>
             </div>
             <div className="bg-[#F5F7FA] rounded-xl p-3">
               <p className="text-sm text-[#1E1E1E] truncate">
@@ -129,7 +129,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           onClick={() => setCurrentScreen("messages")}
           className="w-full h-12 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] font-medium hover:bg-[#F5F7FA] flex items-center justify-center gap-2 transition-colors shadow-sm"
         >
-          <MessageSquare className="h-5 w-5 text-[#6CB4EE]" />
+          <MessageSquare className="h-5 w-5 text-[#6EC6FF]" />
           Message Braxton
         </button>
       </div>
