@@ -42,8 +42,8 @@ export function AuthScreen() {
           <div className="h-20 w-20 rounded-2xl glass-card flex items-center justify-center mx-auto mb-6">
             <UserPlus className="h-10 w-10 text-[#6EC6FF]" />
           </div>
-          <h1 className="text-2xl font-bold text-[#1E1E1E] tracking-tight">Almost there!</h1>
-          <p className="text-[#64748B] mt-3 max-w-xs mx-auto leading-relaxed">
+          <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Almost there!</h1>
+          <p className="text-[#64748B] mt-3 max-w-xs mx-auto leading-relaxed text-[15px]">
             Create an account to track your inquiry and receive updates
           </p>
         </div>
@@ -52,14 +52,14 @@ export function AuthScreen() {
         <div className="space-y-4">
           <button
             onClick={() => submitInquiry(true)}
-            className="w-full h-14 text-base font-semibold rounded-2xl bg-[#6EC6FF] hover:bg-[#5BB8F5] text-white premium-shadow-lg transition-all duration-200 active:scale-[0.98]"
+            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center active:scale-[0.98] transition-transform"
           >
             Sign in / Create account
           </button>
           
           <button
             onClick={() => submitInquiry(false)}
-            className="w-full h-14 text-base font-medium rounded-2xl glass-card flex items-center justify-center gap-2 text-[#64748B] hover:bg-white transition-all duration-200 active:scale-[0.98]"
+            className="w-full h-14 text-base font-medium rounded-2xl glass-button flex items-center justify-center gap-2 text-[#64748B] active:scale-[0.98] transition-transform"
           >
             <UserX className="h-5 w-5" />
             Continue as guest

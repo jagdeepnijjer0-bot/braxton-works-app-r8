@@ -30,8 +30,8 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   
   if (!job) {
     return (
-      <div className="min-h-screen pb-24 flex items-center justify-center">
-        <p className="text-[#5A6A7A]">Job not found</p>
+      <div className="min-h-screen pb-28 flex items-center justify-center">
+        <p className="text-[#64748B]">Job not found</p>
       </div>
     )
   }
@@ -39,12 +39,12 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const StatusIcon = statusIcons[job.status]
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4">
+      <div className="px-6 pt-8 pb-6">
         <button
           onClick={() => setCurrentScreen("jobs")}
-          className="flex items-center gap-2 text-[#5A6A7A] mb-6 hover:text-[#1E1E1E] transition-colors"
+          className="flex items-center gap-2 text-[#64748B] hover:text-[#1E1E1E] mb-8 transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
@@ -56,27 +56,27 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
           <span className="text-sm font-medium">{statusLabels[job.status]}</span>
         </div>
         
-        <h1 className="text-xl font-bold text-[#1E1E1E]">{job.category}</h1>
-        <p className="text-sm text-[#5A6A7A] mt-1">
+        <h1 className="text-xl font-semibold text-[#1E1E1E] tracking-tight">{job.category}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {job.type === "issue" ? "Issue" : "Inquiry"} - {job.date}
         </p>
       </div>
 
       {/* Content */}
-      <div className="px-6 space-y-6">
+      <div className="px-6 space-y-5">
         {/* Description */}
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-[#5A6A7A] mb-2">Description</h3>
-          <p className="text-[#1E1E1E]">{job.description}</p>
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-xs font-semibold text-[#64748B] mb-3 uppercase tracking-wide">Description</h3>
+          <p className="text-[#1E1E1E] text-[15px] leading-relaxed">{job.description}</p>
         </div>
 
         {/* Photos */}
         {job.photos.length > 0 && (
-          <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-[#5A6A7A] mb-3">Photos</h3>
+          <div className="glass-card rounded-2xl p-5">
+            <h3 className="text-xs font-semibold text-[#64748B] mb-3 uppercase tracking-wide">Photos</h3>
             <div className="grid grid-cols-3 gap-2">
               {job.photos.map((photo, i) => (
-                <div key={i} className="aspect-square rounded-xl overflow-hidden bg-[#F5F7FA]">
+                <div key={i} className="aspect-square rounded-xl overflow-hidden">
                   <img src={photo} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -85,24 +85,24 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
         )}
 
         {/* Address */}
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-[#5A6A7A] mb-2">Address</h3>
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-xs font-semibold text-[#64748B] mb-3 uppercase tracking-wide">Address</h3>
           <div className="flex items-start gap-3">
-            <MapPin className="h-5 w-5 text-[#5A6A7A] flex-shrink-0 mt-0.5" />
-            <p className="text-[#1E1E1E]">{job.address}</p>
+            <MapPin className="h-5 w-5 text-[#64748B] flex-shrink-0 mt-0.5" />
+            <p className="text-[#1E1E1E] text-[15px]">{job.address}</p>
           </div>
         </div>
 
         {/* Updates */}
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-[#5A6A7A] mb-3">Updates</h3>
-          <div className="space-y-3">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-xs font-semibold text-[#64748B] mb-4 uppercase tracking-wide">Updates</h3>
+          <div className="space-y-4">
             {job.updates.map((update, i) => (
               <div key={i} className="flex gap-3">
                 <div className="w-2 h-2 rounded-full bg-[#6EC6FF] mt-2 flex-shrink-0" />
                 <div>
-                  <p className="text-[#1E1E1E] text-sm">{update.message}</p>
-                  <p className="text-xs text-[#9CA3AF] mt-0.5">{update.date}</p>
+                  <p className="text-[#1E1E1E] text-[15px]">{update.message}</p>
+                  <p className="text-xs text-[#94A3B8] mt-1">{update.date}</p>
                 </div>
               </div>
             ))}
@@ -111,12 +111,12 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
         {/* Message Preview */}
         {jobMessages.length > 0 && (
-          <div className="bg-white rounded-2xl border border-[#E8ECF0] p-4 shadow-sm">
+          <div className="glass-card rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-[#5A6A7A]">Messages</h3>
+              <h3 className="text-xs font-semibold text-[#64748B] uppercase tracking-wide">Messages</h3>
               <span className="text-xs text-[#6EC6FF] font-medium">{jobMessages.length} messages</span>
             </div>
-            <div className="bg-[#F5F7FA] rounded-xl p-3">
+            <div className="bg-[#F1F5F8] rounded-xl p-3">
               <p className="text-sm text-[#1E1E1E] truncate">
                 {jobMessages[jobMessages.length - 1].text}
               </p>
@@ -127,7 +127,7 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
         {/* Message Button */}
         <button
           onClick={() => setCurrentScreen("messages")}
-          className="w-full h-12 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] font-medium hover:bg-[#F5F7FA] flex items-center justify-center gap-2 transition-colors shadow-sm"
+          className="w-full h-14 rounded-2xl glass-button font-medium flex items-center justify-center gap-2 text-[#1E1E1E] active:scale-[0.98] transition-transform"
         >
           <MessageSquare className="h-5 w-5 text-[#6EC6FF]" />
           Message Braxton

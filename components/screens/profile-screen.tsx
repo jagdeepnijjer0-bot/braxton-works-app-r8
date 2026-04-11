@@ -1,8 +1,7 @@
 "use client"
 
 import { useApp, ContactPreference } from "@/lib/app-context"
-import { Button } from "@/components/ui/button"
-import { User, Phone, MessageSquare, Mail, LogOut, Settings } from "lucide-react"
+import { User, Phone, MessageSquare, Mail, LogOut, Settings, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const contactOptions: { id: ContactPreference; label: string; icon: typeof Phone }[] = [
@@ -22,35 +21,48 @@ export function ProfileScreen() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen pb-24 flex flex-col items-center justify-center px-6">
-        <div className="h-20 w-20 rounded-full bg-[#F1F5F8] flex items-center justify-center mb-6">
-          <User className="h-10 w-10 text-[#64748B]" />
+      <div className="min-h-screen pb-32 flex flex-col">
+        {/* Header */}
+        <div className="px-6 pt-14 pb-6">
+          <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Profile</h1>
         </div>
-        <h2 className="text-xl font-bold text-[#1E1E1E] mb-2">Not signed in</h2>
-        <p className="text-[#64748B] text-center mb-6">
-          Sign in to view your profile and track your jobs
-        </p>
-        <Button
-          onClick={() => setCurrentScreen("home")}
-          className="w-full max-w-xs h-12 rounded-xl bg-[#6EC6FF] hover:bg-[#5BB8F5] text-white shadow-sm transition-colors"
-        >
-          Go to Home
-        </Button>
+
+        {/* Empty State */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-16">
+          <div className="h-24 w-24 rounded-full bg-[#F1F5F8] flex items-center justify-center mb-6">
+            <User className="h-12 w-12 text-[#94A3B8]" />
+          </div>
+          <h2 className="text-xl font-semibold text-[#1E1E1E] mb-2">Not signed in</h2>
+          <p className="text-[#64748B] text-center text-[15px] leading-relaxed max-w-xs">
+            Sign in to view your profile and track your jobs
+          </p>
+        </div>
+
+        {/* Sign In Button - Above bottom nav */}
+        <div className="px-6 pb-8">
+          <button
+            onClick={() => setCurrentScreen("auth")}
+            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          >
+            Sign In
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-32">
       {/* Header */}
-      <div className="px-6 pt-8 pb-6">
-        <h1 className="text-2xl font-bold text-[#1E1E1E]">Profile</h1>
+      <div className="px-6 pt-14 pb-6">
+        <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Profile</h1>
       </div>
 
       {/* Profile Card */}
       <div className="px-6 mb-6">
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] p-6 shadow-sm">
-          <div className="flex items-center gap-4 mb-6">
+        <div className="glass-card rounded-3xl p-6">
+          <div className="flex items-center gap-4 mb-8">
             <div className="h-16 w-16 rounded-full bg-[#E3F3FF] flex items-center justify-center">
               <User className="h-8 w-8 text-[#6EC6FF]" />
             </div>
@@ -61,23 +73,23 @@ export function ProfileScreen() {
           </div>
 
           {/* Editable Fields */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <label className="text-sm font-medium text-[#64748B] mb-2 block">Name</label>
+              <label className="text-xs font-semibold text-[#64748B] mb-2 block uppercase tracking-wide">Name</label>
               <input
                 type="text"
                 value={user.name}
                 onChange={(e) => setUser({ ...user, name: e.target.value })}
-                className="w-full p-3 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] focus:border-[#6EC6FF] focus:ring-1 focus:ring-[#6EC6FF]/20 focus:outline-none"
+                className="w-full p-4 rounded-xl glass-input text-[#1E1E1E] focus:outline-none text-[15px]"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-[#64748B] mb-2 block">Phone</label>
+              <label className="text-xs font-semibold text-[#64748B] mb-2 block uppercase tracking-wide">Phone</label>
               <input
                 type="tel"
                 value={user.phone}
                 onChange={(e) => setUser({ ...user, phone: e.target.value })}
-                className="w-full p-3 rounded-xl border border-[#E8ECF0] bg-white text-[#1E1E1E] focus:border-[#6EC6FF] focus:ring-1 focus:ring-[#6EC6FF]/20 focus:outline-none"
+                className="w-full p-4 rounded-xl glass-input text-[#1E1E1E] focus:outline-none text-[15px]"
               />
             </div>
           </div>
@@ -86,30 +98,30 @@ export function ProfileScreen() {
 
       {/* Contact Preference */}
       <div className="px-6 mb-6">
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-[#64748B] mb-4">Contact Preference</h3>
+        <div className="glass-card rounded-3xl p-6">
+          <h3 className="text-xs font-semibold text-[#64748B] mb-5 uppercase tracking-wide">Contact Preference</h3>
           <div className="grid grid-cols-3 gap-3">
             {contactOptions.map((option) => (
               <button
                 key={option.id}
                 onClick={() => setUser({ ...user, contactPreference: option.id })}
                 className={cn(
-                  "p-3 rounded-xl border bg-white flex flex-col items-center gap-2 transition-all",
+                  "p-4 rounded-xl flex flex-col items-center gap-2 transition-all duration-200 active:scale-[0.98]",
                   user.contactPreference === option.id
-                    ? "border-[#6EC6FF] bg-[#E3F3FF]"
-                    : "border-[#E8ECF0] hover:border-[#6EC6FF]"
+                    ? "glass-button-primary"
+                    : "glass-button"
                 )}
               >
                 <option.icon
                   className={cn(
                     "h-5 w-5",
-                    user.contactPreference === option.id ? "text-[#6EC6FF]" : "text-[#64748B]"
+                    user.contactPreference === option.id ? "text-white" : "text-[#64748B]"
                   )}
                 />
                 <span
                   className={cn(
                     "text-xs font-medium",
-                    user.contactPreference === option.id ? "text-[#6EC6FF]" : "text-[#64748B]"
+                    user.contactPreference === option.id ? "text-white" : "text-[#64748B]"
                   )}
                 >
                   {option.label}
@@ -122,10 +134,10 @@ export function ProfileScreen() {
 
       {/* Settings */}
       <div className="px-6 mb-6">
-        <div className="bg-white rounded-2xl border border-[#E8ECF0] overflow-hidden shadow-sm">
-          <button className="w-full p-4 flex items-center gap-4 text-left hover:bg-[#F1F5F8] transition-colors">
+        <div className="glass-card rounded-3xl overflow-hidden">
+          <button className="w-full p-5 flex items-center gap-4 text-left hover:bg-white/50 transition-colors">
             <Settings className="h-5 w-5 text-[#64748B]" />
-            <span className="text-[#1E1E1E] font-medium">Settings</span>
+            <span className="text-[#1E1E1E] font-medium text-[15px]">Settings</span>
           </button>
         </div>
       </div>
@@ -134,7 +146,7 @@ export function ProfileScreen() {
       <div className="px-6">
         <button
           onClick={handleLogout}
-          className="w-full h-12 rounded-xl border border-red-200 bg-white text-red-500 font-medium hover:bg-red-50 flex items-center justify-center gap-2 transition-colors shadow-sm"
+          className="w-full h-14 rounded-2xl glass-button border-red-100 text-red-500 font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
           <LogOut className="h-5 w-5" />
           Sign Out
