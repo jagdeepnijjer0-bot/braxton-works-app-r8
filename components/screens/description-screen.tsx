@@ -10,15 +10,25 @@ export function DescriptionScreen() {
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      const newPhotos = Array.from(files).map((file) => URL.createObjectURL(file))
-      setInquiryData({ ...inquiryData, photos: [...inquiryData.photos, ...newPhotos] })
-    }
+    if (!files) return
+
+    const newFiles    = Array.from(files)
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file))
+
+    setInquiryData({
+      ...inquiryData,
+      photoFiles:       [...inquiryData.photoFiles, ...newFiles],
+      photoPreviewUrls: [...inquiryData.photoPreviewUrls, ...newPreviews],
+    })
   }
 
   const removePhoto = (index: number) => {
-    const newPhotos = inquiryData.photos.filter((_, i) => i !== index)
-    setInquiryData({ ...inquiryData, photos: newPhotos })
+    URL.revokeObjectURL(inquiryData.photoPreviewUrls[index])
+    setInquiryData({
+      ...inquiryData,
+      photoFiles:       inquiryData.photoFiles.filter((_, i) => i !== index),
+      photoPreviewUrls: inquiryData.photoPreviewUrls.filter((_, i) => i !== index),
+    })
   }
 
   const canContinue = inquiryData.description.trim().length > 0
@@ -50,7 +60,11 @@ export function DescriptionScreen() {
           <textarea
             value={inquiryData.description}
             onChange={(e) => setInquiryData({ ...inquiryData, description: e.target.value })}
-            placeholder={inquiryData.type === "issue" ? "E.g., The kitchen tap has been dripping for a few days..." : "E.g., Looking to renovate the kitchen with new cabinets and countertops..."}
+            placeholder={
+              inquiryData.type === "issue"
+                ? "E.g., The kitchen tap has been dripping for a few days..."
+                : "E.g., Looking to renovate the kitchen with new cabinets and countertops..."
+            }
             className="w-full h-36 p-4 rounded-2xl glass-input text-[#1E1E1E] placeholder:text-[#94A3B8] resize-none text-[15px] focus:outline-none"
           />
         </div>
@@ -68,12 +82,12 @@ export function DescriptionScreen() {
             onChange={handlePhotoUpload}
             className="hidden"
           />
-          
+
           {/* Photo Grid */}
           <div className="grid grid-cols-3 gap-3">
-            {inquiryData.photos.map((photo, index) => (
+            {inquiryData.photoPreviewUrls.map((preview, index) => (
               <div key={index} className="relative aspect-square rounded-xl overflow-hidden">
-                <img src={photo} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
+                <img src={preview} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
                 <button
                   onClick={() => removePhoto(index)}
                   className="absolute top-2 right-2 h-6 w-6 rounded-full bg-[#1E1E1E]/80 flex items-center justify-center"
@@ -82,7 +96,7 @@ export function DescriptionScreen() {
                 </button>
               </div>
             ))}
-            
+
             {/* Add Photo Button */}
             <button
               onClick={() => fileInputRef.current?.click()}

@@ -6,11 +6,16 @@ export type InquiryType = "issue" | "inquiry" | null
 export type TimingOption = "asap" | "this-week" | "choose-date" | null
 export type ContactPreference = "phone" | "text" | "in-app" | null
 
+export type JobStatus = "New" | "Quoted" | "Booked" | "In Progress" | "Complete" | "Cancelled"
+
 export interface InquiryData {
   type: InquiryType
   category: string | null
   description: string
-  photos: string[]
+  // photoFiles holds the actual File objects for upload
+  photoFiles: File[]
+  // photoPreviewUrls holds object URLs for display during the flow
+  photoPreviewUrls: string[]
   timing: TimingOption
   chosenDate: string | null
   name: string
@@ -19,16 +24,22 @@ export interface InquiryData {
   contactPreference: ContactPreference
 }
 
+export interface JobUpdate {
+  message: string
+  created_at: string
+  type: "status_change" | "note"
+}
+
 export interface Job {
   id: string
   type: InquiryType
   category: string
   description: string
-  photos: string[]
+  photos: string[]   // public URLs from Supabase Storage
   address: string
-  status: "pending" | "in-progress" | "completed"
+  status: JobStatus
   date: string
-  updates: { date: string; message: string }[]
+  updates: JobUpdate[]
 }
 
 export interface Message {
@@ -46,11 +57,12 @@ interface AppContextType {
   setInquiryData: (data: InquiryData) => void
   resetInquiry: () => void
   jobs: Job[]
+  setJobs: (jobs: Job[]) => void
   addJob: (job: Job) => void
   messages: Message[]
   addMessage: (message: Message) => void
-  user: { name: string; phone: string; contactPreference: ContactPreference } | null
-  setUser: (user: { name: string; phone: string; contactPreference: ContactPreference } | null) => void
+  user: { id?: string; name: string; phone: string; contactPreference: ContactPreference } | null
+  setUser: (user: { id?: string; name: string; phone: string; contactPreference: ContactPreference } | null) => void
   isAuthenticated: boolean
   setIsAuthenticated: (auth: boolean) => void
 }
@@ -59,7 +71,8 @@ const defaultInquiry: InquiryData = {
   type: null,
   category: null,
   description: "",
-  photos: [],
+  photoFiles: [],
+  photoPreviewUrls: [],
   timing: null,
   chosenDate: null,
   name: "",
@@ -73,55 +86,20 @@ const AppContext = createContext<AppContextType | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentScreen, setCurrentScreen] = useState("home")
   const [inquiryData, setInquiryData] = useState<InquiryData>(defaultInquiry)
-  const [jobs, setJobs] = useState<Job[]>([
-    {
-      id: "1",
-      type: "issue",
-      category: "Plumbing",
-      description: "Leaking tap in kitchen",
-      photos: [],
-      address: "123 Main Street, London",
-      status: "in-progress",
-      date: "2026-04-07",
-      updates: [
-        { date: "2026-04-07", message: "Inquiry received" },
-        { date: "2026-04-08", message: "Plumber assigned - arriving tomorrow" },
-      ],
-    },
-    {
-      id: "2",
-      type: "inquiry",
-      category: "Kitchen",
-      description: "Full kitchen renovation quote needed",
-      photos: [],
-      address: "123 Main Street, London",
-      status: "pending",
-      date: "2026-04-05",
-      updates: [{ date: "2026-04-05", message: "Inquiry received - awaiting assessment" }],
-    },
-  ])
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      jobId: "1",
-      sender: "braxton",
-      text: "Hi! Your plumber has been assigned and will arrive tomorrow between 9-11am.",
-      timestamp: "2026-04-08T10:30:00",
-    },
-    {
-      id: "2",
-      jobId: "1",
-      sender: "user",
-      text: "Great, thank you!",
-      timestamp: "2026-04-08T10:35:00",
-    },
-  ])
-  const [user, setUser] = useState<{ name: string; phone: string; contactPreference: ContactPreference } | null>(null)
+  // Start with empty jobs — real data loaded by JobsScreen
+  const [jobs, setJobsState] = useState<Job[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [user, setUser] = useState<{ id?: string; name: string; phone: string; contactPreference: ContactPreference } | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const resetInquiry = () => setInquiryData(defaultInquiry)
+  const resetInquiry = () => {
+    // Revoke any created object URLs to free memory
+    inquiryData.photoPreviewUrls.forEach((url) => URL.revokeObjectURL(url))
+    setInquiryData(defaultInquiry)
+  }
 
-  const addJob = (job: Job) => setJobs((prev) => [job, ...prev])
+  const setJobs = (jobs: Job[]) => setJobsState(jobs)
+  const addJob  = (job: Job)   => setJobsState((prev) => [job, ...prev])
 
   const addMessage = (message: Message) => setMessages((prev) => [...prev, message])
 
@@ -134,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setInquiryData,
         resetInquiry,
         jobs,
+        setJobs,
         addJob,
         messages,
         addMessage,

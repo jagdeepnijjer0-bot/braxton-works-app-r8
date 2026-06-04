@@ -1,42 +1,81 @@
 "use client"
 
-import { useApp } from "@/lib/app-context"
-import { UserPlus, UserX } from "lucide-react"
+import { useState } from "react"
+import { useApp, Job } from "@/lib/app-context"
+import { UserPlus, UserX, Loader2 } from "lucide-react"
 
 export function AuthScreen() {
   const { setCurrentScreen, inquiryData, addJob, resetInquiry, setUser, setIsAuthenticated } = useApp()
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState<string | null>(null)
 
-  const submitInquiry = (authenticated: boolean) => {
-    // Create the job
-    const newJob = {
-      id: Date.now().toString(),
-      type: inquiryData.type,
-      category: inquiryData.category || "General",
-      description: inquiryData.description,
-      photos: inquiryData.photos,
-      address: inquiryData.address,
-      status: "pending" as const,
-      date: new Date().toISOString().split("T")[0],
-      updates: [{ date: new Date().toISOString().split("T")[0], message: "Inquiry received" }],
-    }
-    addJob(newJob)
+  const submitInquiry = async (authenticated: boolean) => {
+    setLoading(true)
+    setError(null)
 
-    if (authenticated) {
-      setUser({
-        name: inquiryData.name,
-        phone: inquiryData.phone,
-        contactPreference: inquiryData.contactPreference,
+    try {
+      const formData = new FormData()
+      formData.append("type",              inquiryData.type ?? "inquiry")
+      formData.append("category",          inquiryData.category ?? "General")
+      formData.append("description",       inquiryData.description)
+      formData.append("address",           inquiryData.address)
+      formData.append("timing",            inquiryData.timing ?? "")
+      formData.append("chosenDate",        inquiryData.chosenDate ?? "")
+      formData.append("name",              inquiryData.name)
+      formData.append("phone",             inquiryData.phone)
+      formData.append("contactPreference", inquiryData.contactPreference ?? "")
+
+      // Attach photo files
+      for (const file of inquiryData.photoFiles) {
+        formData.append("photos", file)
+      }
+
+      const res = await fetch("/api/submissions", {
+        method: "POST",
+        body: formData,
       })
-      setIsAuthenticated(true)
-    }
 
-    resetInquiry()
-    setCurrentScreen("confirmation")
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? "Submission failed. Please try again.")
+      }
+
+      const { jobId } = await res.json()
+
+      // Add a local job so the jobs list updates immediately
+      const localJob: Job = {
+        id: jobId,
+        type: inquiryData.type,
+        category: inquiryData.category ?? "General",
+        description: inquiryData.description,
+        photos: inquiryData.photoPreviewUrls,
+        address: inquiryData.address,
+        status: "New",
+        date: new Date().toISOString().split("T")[0],
+        updates: [{ message: "Enquiry received", created_at: new Date().toISOString(), type: "status_change" }],
+      }
+      addJob(localJob)
+
+      if (authenticated) {
+        setUser({
+          name:              inquiryData.name,
+          phone:             inquiryData.phone,
+          contactPreference: inquiryData.contactPreference,
+        })
+        setIsAuthenticated(true)
+      }
+
+      resetInquiry()
+      setCurrentScreen("confirmation")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen pb-28 flex flex-col">
-      {/* Header */}
       <div className="px-6 pt-16 pb-6 flex-1 flex flex-col justify-center">
         <div className="text-center mb-10">
           <div className="h-20 w-20 rounded-2xl glass-card flex items-center justify-center mx-auto mb-6">
@@ -48,21 +87,34 @@ export function AuthScreen() {
           </p>
         </div>
 
-        {/* Options */}
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600 text-center">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-4">
           <button
             onClick={() => submitInquiry(true)}
-            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center active:scale-[0.98] transition-transform"
+            disabled={loading}
+            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
           >
-            Sign in / Create account
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign in / Create account"}
           </button>
-          
+
           <button
             onClick={() => submitInquiry(false)}
-            className="w-full h-14 text-base font-medium rounded-2xl glass-button flex items-center justify-center gap-2 text-[#64748B] active:scale-[0.98] transition-transform"
+            disabled={loading}
+            className="w-full h-14 text-base font-medium rounded-2xl glass-button flex items-center justify-center gap-2 text-[#64748B] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
           >
-            <UserX className="h-5 w-5" />
-            Continue as guest
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <UserX className="h-5 w-5" />
+                Continue as guest
+              </>
+            )}
           </button>
         </div>
 
