@@ -6,6 +6,11 @@ import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { useRouter, useSegments } from "expo-router";
+import { StyleSheet } from "react-native";
+
+// Force class-based dark mode so the app always uses its navy theme
+// regardless of the user's system dark mode setting.
+StyleSheet.setFlag?.("darkMode", "class");
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
