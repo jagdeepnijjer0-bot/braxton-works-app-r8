@@ -13,12 +13,12 @@ export function Card({ children, style }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
-    borderRadius:    20,
-    padding:         20,
+    borderRadius:    22,
+    padding:         22,
     shadowColor:     "#000",
-    shadowOpacity:   0.08,
-    shadowRadius:    12,
-    shadowOffset:    { width: 0, height: 4 },
-    elevation:       3,
+    shadowOpacity:   0.1,
+    shadowRadius:    16,
+    shadowOffset:    { width: 0, height: 6 },
+    elevation:       4,
   },
 });

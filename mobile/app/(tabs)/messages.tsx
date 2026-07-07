@@ -11,19 +11,21 @@ export default function MessagesScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
-        <Text style={styles.sub}>Chat with Build.me</Text>
+        <Text style={styles.sub}>Stay in touch with your contractor</Text>
       </View>
 
       <View style={styles.center}>
         <View style={styles.iconWrap}>
-          <MessageSquare color={colors.amber} size={30} />
+          <MessageSquare color={colors.amber} size={32} strokeWidth={2} />
         </View>
         <Text style={styles.emptyTitle}>No messages yet</Text>
-        <Text style={styles.emptyBody}>Submit a job to get started.</Text>
+        <Text style={styles.emptyBody}>
+          Once a contractor is assigned to your job, your conversation will appear here.
+        </Text>
         <Button
           label="Start an Inquiry"
           onPress={() => router.push("/inquiry/type")}
-          style={{ marginTop: 20, width: "100%" }}
+          style={{ marginTop: 24, width: "100%" }}
         />
       </View>
     </SafeAreaView>
@@ -31,20 +33,23 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: colors.navy },
-  header:    { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 20 },
-  title:     { color: colors.white, fontSize: 24, fontWeight: "700" },
-  sub:       { color: "rgba(255,255,255,0.5)", fontSize: 14, marginTop: 4 },
-  center:    {
-    flex:            1,
-    marginHorizontal: 20,
-    backgroundColor: colors.white,
-    borderRadius:    24,
-    padding:         28,
-    alignItems:      "center",
-    justifyContent:  "center",
+  safe:       { flex: 1, backgroundColor: colors.navy },
+  header:     { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 20 },
+  title:      { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6 },
+  sub:        { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "600", marginTop: 4 },
+  center: {
+    flex:              1,
+    marginHorizontal:  22,
+    marginBottom:      22,
+    backgroundColor:   "rgba(255,255,255,0.05)",
+    borderRadius:      24,
+    padding:           32,
+    alignItems:        "center",
+    justifyContent:    "center",
+    borderWidth:       1,
+    borderColor:       "rgba(255,255,255,0.08)",
   },
-  iconWrap:  { width: 64, height: 64, borderRadius: 18, backgroundColor: "rgba(245,158,11,0.12)", alignItems: "center", justifyContent: "center", marginBottom: 18 },
-  emptyTitle:{ color: colors.navy, fontWeight: "700", fontSize: 18, marginBottom: 8 },
-  emptyBody: { color: colors.slate, fontSize: 14, textAlign: "center", lineHeight: 20 },
+  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  emptyTitle: { color: colors.white, fontWeight: "800", fontSize: 20, marginBottom: 10 },
+  emptyBody:  { color: "rgba(255,255,255,0.45)", fontSize: 14, textAlign: "center", lineHeight: 22 },
 });

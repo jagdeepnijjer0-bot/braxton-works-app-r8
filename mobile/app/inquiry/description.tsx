@@ -25,12 +25,14 @@ export default function DescriptionScreen() {
       <StepProgress step={2} />
 
       <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-        <ArrowLeft color="rgba(255,255,255,0.6)" size={20} />
+        <ArrowLeft color="rgba(255,255,255,0.5)" size={18} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Describe the {inquiry.type === "issue" ? "issue" : "project"}</Text>
+        <Text style={styles.title}>
+          {inquiry.type === "issue" ? "Describe the\nissue" : "Describe the\nproject"}
+        </Text>
         <Text style={styles.sub}>The more detail, the better</Text>
 
         <Text style={styles.fieldLabel}>DESCRIPTION</Text>
@@ -42,7 +44,7 @@ export default function DescriptionScreen() {
               ? "E.g., The kitchen tap has been dripping..."
               : "E.g., Looking to renovate the kitchen..."
           }
-          placeholderTextColor={colors.muted}
+          placeholderTextColor="rgba(15,23,42,0.35)"
           multiline
           numberOfLines={5}
           textAlignVertical="top"
@@ -62,7 +64,7 @@ export default function DescriptionScreen() {
           <TouchableOpacity
             style={styles.addPhoto}
             onPress={() => {
-              // Camera/image picker would be wired here in production
+              // Camera/image picker wired here in production
             }}
             activeOpacity={0.85}
           >
@@ -86,29 +88,35 @@ export default function DescriptionScreen() {
 
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: colors.navy },
-  back:          { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4 },
-  backText:      { color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: "500" },
-  content:       { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
-  title:         { color: colors.white, fontSize: 24, fontWeight: "700", marginBottom: 6 },
-  sub:           { color: "rgba(255,255,255,0.55)", fontSize: 15, marginBottom: 24 },
-  fieldLabel:    { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", letterSpacing: 1.1, marginBottom: 8 },
+  back:          { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
+  backText:      { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "600" },
+  content:       { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
+  title:         { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
+  sub:           { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500", marginBottom: 32 },
+  fieldLabel:    { color: colors.amber, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 10 },
   textarea: {
     backgroundColor: colors.white,
-    borderRadius:    14,
-    padding:         14,
+    borderRadius:    18,
+    padding:         18,
     fontSize:        15,
     color:           colors.navy,
-    height:          140,
-    marginBottom:    24,
+    height:          148,
+    marginBottom:    28,
+    fontWeight:      "500",
+    shadowColor:     "#000",
+    shadowOpacity:   0.08,
+    shadowRadius:    10,
+    shadowOffset:    { width: 0, height: 4 },
+    elevation:       3,
   },
-  photoGrid:     { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
+  photoGrid:     { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 28 },
   photoWrap:     { position: "relative" },
-  photo:         { width: 90, height: 90, borderRadius: 12 },
+  photo:         { width: 90, height: 90, borderRadius: 14 },
   removeBtn: {
     position:        "absolute",
     top:             6,
     right:           6,
-    backgroundColor: "rgba(15,23,42,0.7)",
+    backgroundColor: "rgba(15,23,42,0.75)",
     borderRadius:    10,
     width:           22,
     height:          22,
@@ -118,16 +126,17 @@ const styles = StyleSheet.create({
   addPhoto: {
     width:           90,
     height:          90,
-    borderRadius:    12,
+    borderRadius:    14,
     backgroundColor: colors.white,
     alignItems:      "center",
     justifyContent:  "center",
     gap:             6,
     shadowColor:     "#000",
-    shadowOpacity:   0.06,
-    shadowRadius:    6,
+    shadowOpacity:   0.08,
+    shadowRadius:    8,
+    shadowOffset:    { width: 0, height: 3 },
     elevation:       2,
   },
-  addPhotoIcon:  { width: 40, height: 40, borderRadius: 10, backgroundColor: "rgba(245,158,11,0.12)", alignItems: "center", justifyContent: "center" },
-  addPhotoLabel: { color: colors.slate, fontSize: 11, fontWeight: "500" },
+  addPhotoIcon:  { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
+  addPhotoLabel: { color: colors.slate, fontSize: 11, fontWeight: "700" },
 });

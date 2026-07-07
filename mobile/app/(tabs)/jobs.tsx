@@ -24,9 +24,9 @@ export default function JobsScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>My Jobs</Text>
+        <Text style={styles.sub}>{jobs.length > 0 ? `${jobs.length} total` : "Track your requests"}</Text>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabRow}>
         {(["active", "completed"] as Tab[]).map((t) => (
           <TouchableOpacity
@@ -46,28 +46,33 @@ export default function JobsScreen() {
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Wrench color={colors.amber} size={28} />
+              <Wrench color={colors.amber} size={28} strokeWidth={2} />
             </View>
-            <Text style={styles.emptyText}>
-              {tab === "active"
-                ? "Nothing booked yet — got something that needs fixing?"
-                : "No completed jobs yet."}
+            <Text style={styles.emptyTitle}>
+              {tab === "active" ? "Nothing active yet" : "No completed jobs"}
             </Text>
-            <Button
-              label="Start an Inquiry"
-              onPress={() => router.push("/inquiry/type")}
-              style={{ marginTop: 16 }}
-            />
+            <Text style={styles.emptyBody}>
+              {tab === "active"
+                ? "Got something that needs fixing? Start an inquiry."
+                : "Completed jobs will appear here."}
+            </Text>
+            {tab === "active" && (
+              <Button
+                label="Start an Inquiry"
+                onPress={() => router.push("/inquiry/type")}
+                style={{ marginTop: 20, width: "100%" }}
+              />
+            )}
           </View>
         ) : (
           filtered.map((job) => {
-            const tone   = statusTone(job.status);
-            const pill   = STATUS_PILL_COLORS[tone];
+            const tone = statusTone(job.status);
+            const pill = STATUS_PILL_COLORS[tone];
             return (
               <TouchableOpacity key={job.id} style={styles.card} activeOpacity={0.85}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.cardMeta}>
-                    <Text style={styles.cardType}>{job.type === "issue" ? "Issue" : "Inquiry"}</Text>
+                    <Text style={styles.cardType}>{job.type === "issue" ? "ISSUE" : "INQUIRY"}</Text>
                     <Text style={styles.cardDot}>·</Text>
                     <Text style={styles.cardCat}>{job.category}</Text>
                   </View>
@@ -78,7 +83,9 @@ export default function JobsScreen() {
                     </Text>
                   </View>
                 </View>
-                <ChevronRight color={colors.muted} size={18} />
+                <View style={styles.chevronWrap}>
+                  <ChevronRight color={colors.muted} size={18} />
+                </View>
               </TouchableOpacity>
             );
           })
@@ -89,42 +96,55 @@ export default function JobsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: colors.navy },
-  header:         { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12 },
-  title:          { color: colors.white, fontSize: 24, fontWeight: "700" },
-  tabRow:         { flexDirection: "row", marginHorizontal: 20, backgroundColor: colors.white, borderRadius: 14, padding: 4, marginBottom: 16 },
-  tab:            { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: "center" },
-  tabActive:      { backgroundColor: colors.amber },
-  tabText:        { color: colors.slate, fontWeight: "600", fontSize: 13 },
-  tabTextActive:  { color: colors.navy },
-  scroll:         { paddingHorizontal: 20, paddingBottom: 30 },
+  safe:          { flex: 1, backgroundColor: colors.navy },
+  header:        { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 16 },
+  title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6 },
+  sub:           { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "600", marginTop: 4 },
+  tabRow: {
+    flexDirection:   "row",
+    marginHorizontal: 22,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius:    16,
+    padding:         4,
+    marginBottom:    18,
+  },
+  tab:           { flex: 1, paddingVertical: 11, borderRadius: 13, alignItems: "center" },
+  tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  tabText:       { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 13 },
+  tabTextActive: { color: colors.navy },
+  scroll:        { paddingHorizontal: 22, paddingBottom: 30 },
   empty: {
-    backgroundColor: colors.white,
-    borderRadius:    20,
-    padding:         28,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius:    22,
+    padding:         32,
     alignItems:      "center",
     marginTop:       10,
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.08)",
   },
-  emptyIcon:      { width: 56, height: 56, borderRadius: 16, backgroundColor: "rgba(245,158,11,0.12)", alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  emptyText:      { color: colors.navy, fontWeight: "500", fontSize: 15, textAlign: "center", lineHeight: 22 },
+  emptyIcon:     { width: 60, height: 60, borderRadius: 18, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 16 },
+  emptyTitle:    { color: colors.white, fontWeight: "800", fontSize: 18, marginBottom: 8 },
+  emptyBody:     { color: "rgba(255,255,255,0.45)", fontSize: 14, textAlign: "center", lineHeight: 20 },
   card: {
     backgroundColor: colors.white,
-    borderRadius:    18,
-    padding:         18,
+    borderRadius:    20,
+    padding:         20,
     flexDirection:   "row",
     alignItems:      "center",
     gap:             12,
     marginBottom:    12,
     shadowColor:     "#000",
-    shadowOpacity:   0.06,
-    shadowRadius:    8,
-    elevation:       2,
+    shadowOpacity:   0.09,
+    shadowRadius:    12,
+    shadowOffset:    { width: 0, height: 4 },
+    elevation:       3,
   },
-  cardMeta:  { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
-  cardType:  { color: colors.slate, fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
-  cardDot:   { color: colors.muted, fontSize: 11 },
-  cardCat:   { color: colors.slate, fontSize: 11 },
-  cardDesc:  { color: colors.navy, fontWeight: "500", fontSize: 14, marginBottom: 8, lineHeight: 20 },
-  pill:      { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  pillText:  { fontSize: 12, fontWeight: "600" },
+  cardMeta:      { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
+  cardType:      { color: colors.amber, fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
+  cardDot:       { color: colors.muted, fontSize: 10 },
+  cardCat:       { color: colors.slate, fontSize: 11, fontWeight: "600" },
+  cardDesc:      { color: colors.navy, fontWeight: "700", fontSize: 15, marginBottom: 10, lineHeight: 21 },
+  pill:          { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  pillText:      { fontSize: 11, fontWeight: "700" },
+  chevronWrap:   { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(15,23,42,0.05)", alignItems: "center", justifyContent: "center" },
 });

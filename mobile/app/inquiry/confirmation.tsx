@@ -23,15 +23,23 @@ export default function ConfirmationScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.center}>
         <View style={styles.iconWrap}>
-          <CheckCircle color={colors.amber} size={72} strokeWidth={1.5} />
+          <View style={styles.iconInner}>
+            <CheckCircle color={colors.amber} size={56} strokeWidth={1.8} />
+          </View>
         </View>
 
-        <Text style={styles.heading}>Inquiry Submitted</Text>
-        <Text style={styles.sub}>We'll be in touch shortly — usually within 2 hours.</Text>
+        <Text style={styles.heading}>Inquiry{"\n"}Submitted</Text>
+        <Text style={styles.sub}>
+          We'll be in touch shortly —{"\n"}usually within 2 hours.
+        </Text>
+
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Response guaranteed or we follow up</Text>
+        </View>
 
         <View style={styles.buttons}>
-          <Button label="Return Home"    onPress={handleHome} variant="secondary" style={{ marginBottom: 12 }} />
-          <Button label="View My Jobs"   onPress={handleJobs} />
+          <Button label="View My Jobs"  onPress={handleJobs} style={{ marginBottom: 12 }} />
+          <Button label="Return Home"   onPress={handleHome} variant="secondary" />
         </View>
       </View>
     </SafeAreaView>
@@ -39,18 +47,40 @@ export default function ConfirmationScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:     { flex: 1, backgroundColor: colors.navy },
-  center:   { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
+  safe:      { flex: 1, backgroundColor: colors.navy },
+  center:    { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   iconWrap: {
-    width:           120,
-    height:          120,
-    borderRadius:    60,
-    backgroundColor: "rgba(245,158,11,0.12)",
+    width:           140,
+    height:          140,
+    borderRadius:    70,
+    backgroundColor: "rgba(245,158,11,0.08)",
     alignItems:      "center",
     justifyContent:  "center",
-    marginBottom:    28,
+    marginBottom:    32,
+    shadowColor:     colors.amber,
+    shadowOpacity:   0.2,
+    shadowRadius:    30,
+    shadowOffset:    { width: 0, height: 0 },
   },
-  heading:  { color: colors.white, fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 12 },
-  sub:      { color: "rgba(255,255,255,0.6)", fontSize: 16, textAlign: "center", lineHeight: 24, marginBottom: 40 },
-  buttons:  { width: "100%" },
+  iconInner: {
+    width:           96,
+    height:          96,
+    borderRadius:    48,
+    backgroundColor: "rgba(245,158,11,0.14)",
+    alignItems:      "center",
+    justifyContent:  "center",
+  },
+  heading:   { color: colors.white, fontSize: 42, fontWeight: "800", textAlign: "center", letterSpacing: -1, lineHeight: 48, marginBottom: 16 },
+  sub:       { color: "rgba(255,255,255,0.55)", fontSize: 16, textAlign: "center", lineHeight: 24, marginBottom: 24 },
+  badge: {
+    backgroundColor:  "rgba(245,158,11,0.12)",
+    borderRadius:     20,
+    paddingHorizontal: 16,
+    paddingVertical:  8,
+    borderWidth:      1,
+    borderColor:      "rgba(245,158,11,0.2)",
+    marginBottom:     40,
+  },
+  badgeText: { color: colors.amber, fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },
+  buttons:   { width: "100%" },
 });

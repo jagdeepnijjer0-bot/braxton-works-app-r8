@@ -31,12 +31,14 @@ export default function CategoryScreen() {
       <StepProgress step={1} />
 
       <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-        <ArrowLeft color="rgba(255,255,255,0.6)" size={20} />
+        <ArrowLeft color="rgba(255,255,255,0.5)" size={18} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>What type of {inquiry.type === "issue" ? "issue" : "project"}?</Text>
+        <Text style={styles.title}>
+          {inquiry.type === "issue" ? "What type of\nissue?" : "What are you\nlooking for?"}
+        </Text>
         <Text style={styles.sub}>Select a category</Text>
 
         <View style={styles.grid}>
@@ -47,10 +49,10 @@ export default function CategoryScreen() {
                 key={id}
                 style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => handleSelect(label)}
-                activeOpacity={0.85}
+                activeOpacity={0.82}
               >
                 <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
-                  <Icon color={isSelected ? colors.navy : colors.amber} size={22} />
+                  <Icon color={isSelected ? colors.navy : colors.amber} size={24} strokeWidth={2} />
                 </View>
                 <Text style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}>
                   {label}
@@ -65,29 +67,29 @@ export default function CategoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:             { flex: 1, backgroundColor: colors.navy },
-  back:             { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 4 },
-  backText:         { color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: "500" },
-  content:          { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
-  title:            { color: colors.white, fontSize: 24, fontWeight: "700", marginBottom: 6 },
-  sub:              { color: "rgba(255,255,255,0.55)", fontSize: 15, marginBottom: 24 },
-  grid:             { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  safe:              { flex: 1, backgroundColor: colors.navy },
+  back:              { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
+  backText:          { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "600" },
+  content:           { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
+  title:             { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
+  sub:               { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500", marginBottom: 28 },
+  grid:              { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: {
-    width:           "47%",
+    width:           "47.5%",
     backgroundColor: colors.white,
-    borderRadius:    18,
-    padding:         18,
-    alignItems:      "center",
-    gap:             12,
+    borderRadius:    20,
+    padding:         20,
+    alignItems:      "flex-start",
+    gap:             14,
     shadowColor:     "#000",
-    shadowOpacity:   0.07,
-    shadowRadius:    8,
-    shadowOffset:    { width: 0, height: 3 },
-    elevation:       2,
+    shadowOpacity:   0.09,
+    shadowRadius:    12,
+    shadowOffset:    { width: 0, height: 4 },
+    elevation:       3,
   },
-  cardSelected:     { backgroundColor: colors.amber },
-  iconBox:          { width: 48, height: 48, borderRadius: 12, backgroundColor: "rgba(245,158,11,0.12)", alignItems: "center", justifyContent: "center" },
-  iconBoxSelected:  { backgroundColor: "rgba(15,23,42,0.12)" },
-  cardLabel:        { color: colors.navy, fontWeight: "600", fontSize: 14, textAlign: "center" },
-  cardLabelSelected:{ color: colors.navy },
+  cardSelected:      { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.35 },
+  iconBox:           { width: 50, height: 50, borderRadius: 14, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
+  iconBoxSelected:   { backgroundColor: "rgba(15,23,42,0.12)" },
+  cardLabel:         { color: colors.navy, fontWeight: "800", fontSize: 15, letterSpacing: -0.3 },
+  cardLabelSelected: { color: colors.navy },
 });

@@ -16,7 +16,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.85}
+      activeOpacity={0.82}
       style={[styles.base, isPrimary ? styles.primary : styles.secondary, disabled && styles.disabled, style]}
     >
       {loading ? (
@@ -32,25 +32,32 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
 
 const styles = StyleSheet.create({
   base: {
-    height:         56,
-    borderRadius:   16,
-    alignItems:     "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
+    height:            60,
+    borderRadius:      18,
+    alignItems:        "center",
+    justifyContent:    "center",
+    paddingHorizontal: 24,
   },
   primary: {
     backgroundColor: colors.amber,
+    shadowColor:     colors.amber,
+    shadowOpacity:   0.35,
+    shadowRadius:    14,
+    shadowOffset:    { width: 0, height: 5 },
+    elevation:       6,
   },
   secondary: {
     backgroundColor: "transparent",
-    borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.2)",
+    borderWidth:     1.5,
+    borderColor:     "rgba(255,255,255,0.18)",
   },
   disabled: {
-    opacity: 0.5,
+    opacity:     0.4,
+    shadowOpacity: 0,
   },
   label: {
-    fontSize:   17,
-    fontWeight: "600",
+    fontSize:      17,
+    fontWeight:    "800",
+    letterSpacing: -0.2,
   },
 });
