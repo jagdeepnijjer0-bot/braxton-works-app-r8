@@ -4,50 +4,54 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #F8FAFB;
-  --foreground: #1E1E1E;
+  --background: #0F172A;
+  --foreground: #FFFFFF;
   --card: #FFFFFF;
-  --card-foreground: #1E1E1E;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #1E1E1E;
-  --primary: #6EC6FF;
-  --primary-hover: #5BB8F5;
-  --primary-foreground: #FFFFFF;
-  --secondary: #4BA3D9;
+  --popover-foreground: #0F172A;
+  --primary: #F59E0B;
+  --primary-hover: #D97706;
+  --primary-foreground: #0F172A;
+  --secondary: #1E293B;
   --secondary-foreground: #FFFFFF;
-  --muted: #F1F5F8;
-  --muted-foreground: #64748B;
-  --accent: #E3F3FF;
-  --accent-foreground: #4BA3D9;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E8ECF0;
-  --input: #E8ECF0;
-  --ring: #6EC6FF;
+  --border: #1E293B;
+  --input: #1E293B;
+  --ring: #F59E0B;
   --radius: 1rem;
 }
 
 .dark {
-  --background: #0F1419;
-  --foreground: #F1F5F8;
-  --card: #1A1F26;
-  --card-foreground: #F1F5F8;
-  --popover: #1A1F26;
-  --popover-foreground: #F1F5F8;
-  --primary: #6EC6FF;
-  --primary-hover: #5BB8F5;
-  --primary-foreground: #0F1419;
-  --secondary: #4BA3D9;
-  --secondary-foreground: #F1F5F8;
-  --muted: #1A1F26;
+  --background: #0F172A;
+  --foreground: #FFFFFF;
+  --card: #1E293B;
+  --card-foreground: #FFFFFF;
+  --popover: #1E293B;
+  --popover-foreground: #FFFFFF;
+  --primary: #F59E0B;
+  --primary-hover: #D97706;
+  --primary-foreground: #0F172A;
+  --secondary: #1E293B;
+  --secondary-foreground: #FFFFFF;
+  --muted: #1E293B;
   --muted-foreground: #94A3B8;
-  --accent: #1E3448;
-  --accent-foreground: #6EC6FF;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
   --destructive: #EF4444;
-  --destructive-foreground: #F1F5F8;
+  --destructive-foreground: #FFFFFF;
   --border: #2A3441;
   --input: #2A3441;
-  --ring: #6EC6FF;
+  --ring: #F59E0B;
 }
 
 @theme inline {
@@ -67,6 +71,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -88,85 +94,71 @@
 }
 
 @layer utilities {
-  /* Premium Glass Effects */
-  .glass {
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-  }
-  
-  .glass-card {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 24px -4px rgba(110, 198, 255, 0.08);
-  }
-  
-  .glass-button {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(110, 198, 255, 0.25);
-    transition: all 0.2s ease;
-  }
-  
-  .glass-button:hover {
-    background: rgba(255, 255, 255, 0.8);
-    border-color: rgba(110, 198, 255, 0.4);
-    box-shadow: 0 0 20px -4px rgba(110, 198, 255, 0.3);
-  }
-  
-  .glass-button-primary {
-    background: rgba(110, 198, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    transition: all 0.2s ease;
-  }
-  
-  .glass-button-primary:hover {
-    background: rgba(110, 198, 255, 0.95);
-    box-shadow: 0 0 24px -4px rgba(110, 198, 255, 0.5);
-  }
-  
-  .glass-nav {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(110, 198, 255, 0.15);
-    box-shadow: 0 -4px 32px -8px rgba(110, 198, 255, 0.1);
-  }
-  
-  .glass-input {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(110, 198, 255, 0.2);
-    transition: all 0.2s ease;
-  }
-  
-  .glass-input:focus {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(110, 198, 255, 0.5);
-    box-shadow: 0 0 0 3px rgba(110, 198, 255, 0.1);
+  /* White card surface on navy background */
+  .card-surface {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.12);
   }
 
-  /* Premium Shadows */
-  .premium-shadow {
-    box-shadow: 0 4px 16px -4px rgba(110, 198, 255, 0.2);
-  }
-  
-  .premium-shadow-lg {
-    box-shadow: 0 8px 32px -8px rgba(110, 198, 255, 0.25);
+  /* Primary CTA — full-width amber, bold dark text */
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease;
   }
 
-  /* Background */
-  .app-background {
-    background: linear-gradient(180deg, #F8FAFB 0%, #F1F5F8 100%);
-    min-height: 100vh;
+  .btn-primary:hover {
+    background: var(--primary-hover);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.6;
+  }
+
+  /* Secondary button — outlined, on navy or white */
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid #E2E8F0;
+    color: inherit;
+    transition: all 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Inputs */
+  .input-field {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid #E2E8F0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .input-field:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  }
+
+  /* Option cards (category / inquiry-type selection grids) */
+  .option-card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid #E2E8F0;
+    transition: all 0.15s ease;
+  }
+
+  .option-card:hover {
+    border-color: var(--primary);
+  }
+
+  .option-card-selected {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: 1px solid var(--primary);
   }
 
   /* Safe area for mobile */

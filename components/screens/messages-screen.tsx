@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { useApp } from "@/lib/app-context"
-import { Send } from "lucide-react"
+import { Send, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function MessagesScreen() {
-  const { messages, addMessage } = useApp()
+  const { messages, addMessage, setCurrentScreen } = useApp()
   const [newMessage, setNewMessage] = useState("")
 
   const handleSend = () => {
@@ -40,14 +40,29 @@ export function MessagesScreen() {
   return (
     <div className="min-h-screen pb-28 flex flex-col">
       {/* Header */}
-      <div className="px-6 pt-14 pb-4 glass-nav">
-        <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Messages</h1>
-        <p className="text-sm text-[#64748B] mt-1">Chat with Braxton Works</p>
+      <div className="px-6 pt-14 pb-4 border-b border-white/10">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">Messages</h1>
+        <p className="text-sm text-white/60 mt-1">Chat with Braxton Works</p>
       </div>
 
       {/* Messages */}
       <div className="flex-1 px-6 py-6 space-y-4 overflow-y-auto">
-        {messages.map((message) => (
+        {messages.length === 0 ? (
+          <div className="card-surface rounded-3xl p-8 text-center mt-4">
+            <div className="h-14 w-14 rounded-2xl bg-[#F59E0B]/15 flex items-center justify-center mx-auto mb-5">
+              <MessageSquare className="h-6 w-6 text-[#F59E0B]" />
+            </div>
+            <p className="text-[#0F172A] font-medium mb-6">
+              No messages yet — submit a job to get started.
+            </p>
+            <button
+              onClick={() => setCurrentScreen("inquiry-type")}
+              className="w-full h-12 rounded-xl btn-primary"
+            >
+              Start an Inquiry
+            </button>
+          </div>
+        ) : messages.map((message) => (
           <div
             key={message.id}
             className={cn(
@@ -59,18 +74,18 @@ export function MessagesScreen() {
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-3",
                 message.sender === "user"
-                  ? "glass-button-primary rounded-br-md"
-                  : "glass-card rounded-bl-md"
+                  ? "bg-[#F59E0B] rounded-br-md"
+                  : "card-surface rounded-bl-md"
               )}
             >
               <p className={cn(
                 "text-[15px]",
-                message.sender === "user" ? "text-white" : "text-[#1E1E1E]"
+                message.sender === "user" ? "text-[#0F172A] font-medium" : "text-[#0F172A]"
               )}>{message.text}</p>
               <p
                 className={cn(
                   "text-xs mt-1.5",
-                  message.sender === "user" ? "text-white/70" : "text-[#94A3B8]"
+                  message.sender === "user" ? "text-[#0F172A]/60" : "text-[#94A3B8]"
                 )}
               >
                 {formatTime(message.timestamp)}
@@ -81,7 +96,7 @@ export function MessagesScreen() {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 glass-nav">
+      <div className="px-6 py-4 border-t border-white/10">
         <div className="flex items-center gap-3">
           <input
             type="text"
@@ -89,14 +104,14 @@ export function MessagesScreen() {
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 p-4 rounded-xl glass-input text-[#1E1E1E] placeholder:text-[#94A3B8] focus:outline-none text-[15px]"
+            className="flex-1 p-4 rounded-xl input-field placeholder:text-[#94A3B8] focus:outline-none text-[15px]"
           />
           <button
             onClick={handleSend}
             disabled={!newMessage.trim()}
-            className="h-14 w-14 rounded-xl glass-button-primary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.95] transition-transform"
+            className="h-14 w-14 rounded-xl btn-primary flex items-center justify-center disabled:cursor-not-allowed active:scale-[0.95] transition-transform"
           >
-            <Send className="h-5 w-5 text-white" />
+            <Send className="h-5 w-5 text-[#0F172A]" />
           </button>
         </div>
       </div>

@@ -78,11 +78,11 @@ export function AuthScreen() {
     <div className="min-h-screen pb-28 flex flex-col">
       <div className="px-6 pt-16 pb-6 flex-1 flex flex-col justify-center">
         <div className="text-center mb-10">
-          <div className="h-20 w-20 rounded-2xl glass-card flex items-center justify-center mx-auto mb-6">
-            <UserPlus className="h-10 w-10 text-[#6EC6FF]" />
+          <div className="h-20 w-20 rounded-2xl card-surface flex items-center justify-center mx-auto mb-6">
+            <UserPlus className="h-10 w-10 text-[#F59E0B]" />
           </div>
-          <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Almost there!</h1>
-          <p className="text-[#64748B] mt-3 max-w-xs mx-auto leading-relaxed text-[15px]">
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Almost there!</h1>
+          <p className="text-white/60 mt-3 max-w-xs mx-auto leading-relaxed text-[15px]">
             Create an account to track your inquiry and receive updates
           </p>
         </div>
@@ -97,7 +97,7 @@ export function AuthScreen() {
           <button
             onClick={() => submitInquiry(true)}
             disabled={loading}
-            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
+            className="w-full h-14 text-[17px] rounded-2xl btn-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:active:scale-100"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign in / Create account"}
           </button>
@@ -105,7 +105,7 @@ export function AuthScreen() {
           <button
             onClick={() => submitInquiry(false)}
             disabled={loading}
-            className="w-full h-14 text-base font-medium rounded-2xl glass-button flex items-center justify-center gap-2 text-[#64748B] active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
+            className="w-full h-14 text-base font-medium rounded-2xl btn-secondary flex items-center justify-center gap-2 text-white active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
           >
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -118,7 +118,7 @@ export function AuthScreen() {
           </button>
         </div>
 
-        <p className="text-center text-sm text-[#94A3B8] mt-8">
+        <p className="text-center text-sm text-white/40 mt-8">
           You can create an account later to view your jobs
         </p>
       </div>

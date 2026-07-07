@@ -24,16 +24,16 @@ export function ProfileScreen() {
       <div className="min-h-screen pb-32 flex flex-col">
         {/* Header */}
         <div className="px-6 pt-14 pb-6">
-          <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Profile</h1>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Profile</h1>
         </div>
 
         {/* Empty State */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 -mt-16">
-          <div className="h-24 w-24 rounded-full bg-[#F1F5F8] flex items-center justify-center mb-6">
-            <User className="h-12 w-12 text-[#94A3B8]" />
+          <div className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center mb-6">
+            <User className="h-12 w-12 text-white/60" />
           </div>
-          <h2 className="text-xl font-semibold text-[#1E1E1E] mb-2">Not signed in</h2>
-          <p className="text-[#64748B] text-center text-[15px] leading-relaxed max-w-xs">
+          <h2 className="text-xl font-semibold text-white mb-2">Not signed in</h2>
+          <p className="text-white/60 text-center text-[15px] leading-relaxed max-w-xs">
             Sign in to view your profile and track your jobs
           </p>
         </div>
@@ -42,7 +42,7 @@ export function ProfileScreen() {
         <div className="px-6 pb-8">
           <button
             onClick={() => setCurrentScreen("auth")}
-            className="w-full h-14 text-[17px] font-semibold rounded-2xl glass-button-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            className="w-full h-14 text-[17px] rounded-2xl btn-primary flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
           >
             Sign In
             <ChevronRight className="h-5 w-5" />
@@ -56,18 +56,18 @@ export function ProfileScreen() {
     <div className="min-h-screen pb-32">
       {/* Header */}
       <div className="px-6 pt-14 pb-6">
-        <h1 className="text-2xl font-semibold text-[#1E1E1E] tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-semibold text-white tracking-tight">Profile</h1>
       </div>
 
       {/* Profile Card */}
       <div className="px-6 mb-6">
-        <div className="glass-card rounded-3xl p-6">
+        <div className="card-surface rounded-3xl p-6">
           <div className="flex items-center gap-4 mb-8">
-            <div className="h-16 w-16 rounded-full bg-[#E3F3FF] flex items-center justify-center">
-              <User className="h-8 w-8 text-[#6EC6FF]" />
+            <div className="h-16 w-16 rounded-full bg-[#F59E0B]/15 flex items-center justify-center">
+              <User className="h-8 w-8 text-[#F59E0B]" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-[#1E1E1E]">{user.name}</h2>
+              <h2 className="text-lg font-semibold text-[#0F172A]">{user.name}</h2>
               <p className="text-[#64748B] text-sm">{user.phone}</p>
             </div>
           </div>
@@ -80,7 +80,7 @@ export function ProfileScreen() {
                 type="text"
                 value={user.name}
                 onChange={(e) => setUser({ ...user, name: e.target.value })}
-                className="w-full p-4 rounded-xl glass-input text-[#1E1E1E] focus:outline-none text-[15px]"
+                className="w-full p-4 rounded-xl input-field focus:outline-none text-[15px]"
               />
             </div>
             <div>
@@ -89,7 +89,7 @@ export function ProfileScreen() {
                 type="tel"
                 value={user.phone}
                 onChange={(e) => setUser({ ...user, phone: e.target.value })}
-                className="w-full p-4 rounded-xl glass-input text-[#1E1E1E] focus:outline-none text-[15px]"
+                className="w-full p-4 rounded-xl input-field focus:outline-none text-[15px]"
               />
             </div>
           </div>
@@ -98,7 +98,7 @@ export function ProfileScreen() {
 
       {/* Contact Preference */}
       <div className="px-6 mb-6">
-        <div className="glass-card rounded-3xl p-6">
+        <div className="card-surface rounded-3xl p-6">
           <h3 className="text-xs font-semibold text-[#64748B] mb-5 uppercase tracking-wide">Contact Preference</h3>
           <div className="grid grid-cols-3 gap-3">
             {contactOptions.map((option) => (
@@ -108,20 +108,20 @@ export function ProfileScreen() {
                 className={cn(
                   "p-4 rounded-xl flex flex-col items-center gap-2 transition-all duration-200 active:scale-[0.98]",
                   user.contactPreference === option.id
-                    ? "glass-button-primary"
-                    : "glass-button"
+                    ? "option-card-selected"
+                    : "option-card"
                 )}
               >
                 <option.icon
                   className={cn(
                     "h-5 w-5",
-                    user.contactPreference === option.id ? "text-white" : "text-[#64748B]"
+                    user.contactPreference === option.id ? "text-[#0F172A]" : "text-[#64748B]"
                   )}
                 />
                 <span
                   className={cn(
                     "text-xs font-medium",
-                    user.contactPreference === option.id ? "text-white" : "text-[#64748B]"
+                    user.contactPreference === option.id ? "text-[#0F172A]" : "text-[#64748B]"
                   )}
                 >
                   {option.label}
@@ -134,10 +134,10 @@ export function ProfileScreen() {
 
       {/* Settings */}
       <div className="px-6 mb-6">
-        <div className="glass-card rounded-3xl overflow-hidden">
-          <button className="w-full p-5 flex items-center gap-4 text-left hover:bg-white/50 transition-colors">
+        <div className="card-surface rounded-3xl overflow-hidden">
+          <button className="w-full p-5 flex items-center gap-4 text-left hover:bg-black/5 transition-colors">
             <Settings className="h-5 w-5 text-[#64748B]" />
-            <span className="text-[#1E1E1E] font-medium text-[15px]">Settings</span>
+            <span className="text-[#0F172A] font-medium text-[15px]">Settings</span>
           </button>
         </div>
       </div>
@@ -146,7 +146,7 @@ export function ProfileScreen() {
       <div className="px-6">
         <button
           onClick={handleLogout}
-          className="w-full h-14 rounded-2xl glass-button border-red-100 text-red-500 font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          className="w-full h-14 rounded-2xl btn-secondary border-red-400/40 text-red-400 font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
           <LogOut className="h-5 w-5" />
           Sign Out
