@@ -76,7 +76,7 @@ export default function ContactScreen() {
 
         <Button
           label="Submit Inquiry"
-          onPress={() => router.push("/inquiry/confirmation")}
+          onPress={() => router.push("/inquiry/auth-gate")}
           disabled={!canContinue}
           style={{ marginTop: 28 }}
         />

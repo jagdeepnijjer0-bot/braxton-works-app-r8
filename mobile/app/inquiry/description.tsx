@@ -1,13 +1,14 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Image,
+  StyleSheet, SafeAreaView, Image, Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Camera, X } from "lucide-react-native";
+import { ArrowLeft, Camera, X, Image as ImageIcon } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { StepProgress } from "@/components/ui/StepProgress";
 import { Button } from "@/components/ui/Button";
+import * as ImagePicker from "expo-image-picker";
 
 export default function DescriptionScreen() {
   const router = useRouter();
@@ -18,6 +19,44 @@ export default function DescriptionScreen() {
   const removePhoto = (index: number) => {
     const photos = inquiry.photos.filter((_, i) => i !== index);
     setInquiry({ ...inquiry, photos });
+  };
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo library access to add photos to your inquiry.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow camera access to take a photo for your inquiry.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+    }
+  };
+
+  const addPhoto = () => {
+    Alert.alert("Add Photo", "Choose a source", [
+      { text: "Camera Roll", onPress: pickPhoto },
+      { text: "Take Photo",  onPress: takePhoto },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   return (
@@ -61,19 +100,19 @@ export default function DescriptionScreen() {
               </TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity
-            style={styles.addPhoto}
-            onPress={() => {
-              // Camera/image picker wired here in production
-            }}
-            activeOpacity={0.85}
-          >
-            <View style={styles.addPhotoIcon}>
-              <Camera color={colors.amber} size={22} />
-            </View>
-            <Text style={styles.addPhotoLabel}>Add photo</Text>
-          </TouchableOpacity>
+          {inquiry.photos.length < 5 && (
+            <TouchableOpacity style={styles.addPhoto} onPress={addPhoto} activeOpacity={0.85}>
+              <View style={styles.addPhotoIcon}>
+                <Camera color={colors.amber} size={22} />
+              </View>
+              <Text style={styles.addPhotoLabel}>Add photo</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {inquiry.photos.length > 0 && (
+          <Text style={styles.photoCount}>{inquiry.photos.length} photo{inquiry.photos.length !== 1 ? "s" : ""} added</Text>
+        )}
 
         <Button
           label="Continue"
@@ -109,7 +148,7 @@ const styles = StyleSheet.create({
     shadowOffset:    { width: 0, height: 4 },
     elevation:       3,
   },
-  photoGrid:     { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 28 },
+  photoGrid:     { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 10 },
   photoWrap:     { position: "relative" },
   photo:         { width: 90, height: 90, borderRadius: 14 },
   removeBtn: {
@@ -139,4 +178,5 @@ const styles = StyleSheet.create({
   },
   addPhotoIcon:  { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
   addPhotoLabel: { color: colors.slate, fontSize: 11, fontWeight: "700" },
+  photoCount:    { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "600", marginBottom: 20 },
 });
