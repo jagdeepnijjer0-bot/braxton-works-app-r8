@@ -1,15 +1,12 @@
 import {
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity,
-  Dimensions, FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowRight, Wrench, Users, Bell } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Logo } from "@/components/ui/Logo";
-
-const { width } = Dimensions.get("window");
 
 const SLIDES = [
   {
@@ -35,7 +32,6 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
-  const listRef = useRef<FlatList>(null);
 
   const finish = async () => {
     await AsyncStorage.setItem("onboarding_done", "1");
@@ -44,13 +40,14 @@ export default function OnboardingScreen() {
 
   const next = () => {
     if (index < SLIDES.length - 1) {
-      listRef.current?.scrollToIndex({ index: index + 1, animated: true });
+      setIndex(index + 1);
     } else {
       finish();
     }
   };
 
-  const isLast = index === SLIDES.length - 1;
+  const slide   = SLIDES[index];
+  const isLast  = index === SLIDES.length - 1;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -59,29 +56,16 @@ export default function OnboardingScreen() {
         <Text style={styles.brand}>Build.me</Text>
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={SLIDES}
-        keyExtractor={(s) => s.key}
-        horizontal
-        pagingEnabled
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) =>
-          setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
-        }
-        renderItem={({ item }) => (
-          <View style={styles.slide}>
-            <View style={styles.iconRing}>
-              <View style={styles.iconInner}>
-                <item.Icon color={colors.amber} size={44} strokeWidth={1.8} />
-              </View>
-            </View>
-            <Text style={styles.heading}>{item.heading}</Text>
-            <Text style={styles.sub}>{item.sub}</Text>
+      {/* Slide content */}
+      <View style={styles.slide}>
+        <View style={styles.iconRing}>
+          <View style={styles.iconInner}>
+            <slide.Icon color={colors.amber} size={44} strokeWidth={1.8} />
           </View>
-        )}
-      />
+        </View>
+        <Text style={styles.heading}>{slide.heading}</Text>
+        <Text style={styles.sub}>{slide.sub}</Text>
+      </View>
 
       {/* Dots */}
       <View style={styles.dots}>
@@ -114,7 +98,7 @@ const styles = StyleSheet.create({
   logoRow:    { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
   brand:      { color: colors.white, fontWeight: "800", fontSize: 20, letterSpacing: -0.4 },
   slide: {
-    width,
+    flex:            1,
     alignItems:      "center",
     justifyContent:  "center",
     paddingHorizontal: 32,
