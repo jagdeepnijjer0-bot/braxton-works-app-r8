@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     justifyContent:  "center",
   },
   heading:   { color: colors.white, fontSize: 42, fontWeight: "800", textAlign: "center", letterSpacing: -1, lineHeight: 48, marginBottom: 16 },
-  sub:       { color: "rgba(255,255,255,0.55)", fontSize: 16, textAlign: "center", lineHeight: 24, marginBottom: 24 },
+  sub:       { color: colors.muted, fontSize: 16, fontWeight: "400", textAlign: "center", lineHeight: 24, marginBottom: 24 },
   badge: {
     backgroundColor:  "rgba(245,158,11,0.12)",
     borderRadius:     20,

@@ -88,10 +88,10 @@ export default function ContactScreen() {
 const styles = StyleSheet.create({
   safe:               { flex: 1, backgroundColor: colors.navy },
   back:               { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
-  backText:           { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "600" },
+  backText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   content:            { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
   title:              { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
-  sub:                { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500", marginBottom: 32 },
+  sub: { color: colors.muted, fontSize: 15, fontWeight: "400", lineHeight: 22 },
   fieldLabel:         { color: colors.amber, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 10 },
   input: {
     backgroundColor:  colors.white,
@@ -124,6 +124,6 @@ const styles = StyleSheet.create({
   prefCardSelected:   { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3 },
   prefIconBox:        { width: 36, height: 36, borderRadius: 10, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
   prefIconBoxSelected:{ backgroundColor: "rgba(15,23,42,0.12)" },
-  prefLabel:          { color: colors.slate, fontSize: 11, fontWeight: "700", textAlign: "center" },
+  prefLabel:          { color: colors.slate, fontSize: 11, fontWeight: "600", textAlign: "center" },
   prefLabelSelected:  { color: colors.navy },
 });

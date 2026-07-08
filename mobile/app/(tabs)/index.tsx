@@ -91,7 +91,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: colors.navy },
-  scroll: { paddingHorizontal: 22, paddingBottom: 48 },
+  scroll: { paddingHorizontal: 22, paddingBottom: 120 },
 
   /* Header */
   header:      { flexDirection: "row", alignItems: "center", gap: 16, paddingTop: 20, marginBottom: 28 },
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   logoLetter:  { color: colors.navy, fontWeight: "900", fontSize: 32, lineHeight: 36, letterSpacing: -1 },
   headerText:  { gap: 2 },
   appName:     { color: colors.white, fontWeight: "800", fontSize: 22, letterSpacing: -0.5 },
-  appSub:      { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "500" },
+  appSub:      { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "400" },
 
   /* Hero */
   tagline:     {
@@ -118,11 +118,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   socialProof: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 13,
-    fontWeight: "500",
+    color: colors.muted,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 22,
     marginBottom: 28,
-    letterSpacing: 0.1,
   },
 
   /* Trust signals */
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(245,158,11,0.14)",
     alignItems: "center", justifyContent: "center",
   },
-  trustLabel:  { color: colors.white, fontSize: 11, fontWeight: "700", textAlign: "center", lineHeight: 16, letterSpacing: 0.2 },
+  trustLabel:  { color: colors.white, fontSize: 12, fontWeight: "600", textAlign: "center", lineHeight: 17, letterSpacing: 0.1 },
 
   /* CTA */
   cta: { marginBottom: 32 },
@@ -153,10 +153,10 @@ const styles = StyleSheet.create({
 
   /* Services grid */
   sectionLabel: {
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.5,
     marginBottom: 14,
   },
   servicesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },

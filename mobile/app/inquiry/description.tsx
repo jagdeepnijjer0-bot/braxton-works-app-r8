@@ -128,10 +128,10 @@ export default function DescriptionScreen() {
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: colors.navy },
   back:          { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
-  backText:      { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "600" },
+  backText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   content:       { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
   title:         { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
-  sub:           { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500", marginBottom: 32 },
+  sub: { color: colors.muted, fontSize: 15, fontWeight: "400", lineHeight: 22 },
   fieldLabel:    { color: colors.amber, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 10 },
   textarea: {
     backgroundColor: colors.white,
@@ -177,6 +177,6 @@ const styles = StyleSheet.create({
     elevation:       2,
   },
   addPhotoIcon:  { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
-  addPhotoLabel: { color: colors.slate, fontSize: 11, fontWeight: "700" },
-  photoCount:    { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "600", marginBottom: 20 },
+  addPhotoLabel: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  photoCount:    { color: colors.muted, fontSize: 12, fontWeight: "400", marginBottom: 20 },
 });

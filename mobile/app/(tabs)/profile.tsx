@@ -84,7 +84,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe:           { flex: 1, backgroundColor: colors.navy },
   header:         { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 8 },
-  title:          { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6 },
+  title:          { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
   signInCard: {
     flex:             1,
     marginHorizontal: 22,
@@ -109,12 +109,12 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     "rgba(255,255,255,0.1)",
   },
-  signInHeading:  { color: colors.white, fontWeight: "800", fontSize: 26, letterSpacing: -0.5, lineHeight: 32, textAlign: "center", marginBottom: 10 },
-  signInSub:      { color: "rgba(255,255,255,0.4)", fontSize: 14, textAlign: "center", lineHeight: 21, marginBottom: 28 },
+  signInHeading:  { color: colors.white, fontWeight: "800", fontSize: 26, letterSpacing: -0.5, lineHeight: 34, textAlign: "center", marginBottom: 10 },
+  signInSub:      { color: colors.muted, fontSize: 15, fontWeight: "400", textAlign: "center", lineHeight: 22, marginBottom: 28 },
   browseLink:     { color: "rgba(255,255,255,0.35)", fontSize: 14, fontWeight: "600" },
   avatarSection:  { alignItems: "center", paddingVertical: 28 },
-  name:           { color: colors.white, fontWeight: "800", fontSize: 22, letterSpacing: -0.4, marginBottom: 4 },
-  nameDesc:       { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500" },
+  name:           { color: colors.white, fontWeight: "800", fontSize: 22, letterSpacing: -0.4, marginBottom: 4, lineHeight: 28 },
+  nameDesc:       { color: colors.muted, fontSize: 14, fontWeight: "400" },
   menu: {
     marginHorizontal: 22,
     backgroundColor:  "rgba(255,255,255,0.05)",
@@ -133,6 +133,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.06)",
   },
   menuIcon:  { width: 38, height: 38, borderRadius: 11, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
-  menuLabel: { color: colors.white, fontWeight: "700", fontSize: 15 },
-  menuDesc:  { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "500", marginTop: 2 },
+  menuLabel: { color: colors.white, fontWeight: "600", fontSize: 15, lineHeight: 21 },
+  menuDesc:  { color: colors.muted, fontSize: 13, fontWeight: "400", marginTop: 2 },
 });

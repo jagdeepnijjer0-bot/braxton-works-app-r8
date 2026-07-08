@@ -98,8 +98,8 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: colors.navy },
   header:        { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 16 },
-  title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6 },
-  sub:           { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "600", marginTop: 4 },
+  title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
+  sub:           { color: colors.muted, fontSize: 14, fontWeight: "400", marginTop: 4 },
   tabRow: {
     flexDirection:   "row",
     marginHorizontal: 22,
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   tabText:       { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 13 },
   tabTextActive: { color: colors.navy },
-  scroll:        { paddingHorizontal: 22, paddingBottom: 30 },
+  scroll:        { paddingHorizontal: 22, paddingBottom: 110 },
   empty: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius:    22,
@@ -123,8 +123,8 @@ const styles = StyleSheet.create({
     borderColor:     "rgba(255,255,255,0.08)",
   },
   emptyIcon:     { width: 60, height: 60, borderRadius: 18, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 16 },
-  emptyTitle:    { color: colors.white, fontWeight: "800", fontSize: 18, marginBottom: 8 },
-  emptyBody:     { color: "rgba(255,255,255,0.45)", fontSize: 14, textAlign: "center", lineHeight: 20 },
+  emptyTitle:    { color: colors.white, fontWeight: "800", fontSize: 20, marginBottom: 8, lineHeight: 26 },
+  emptyBody:     { color: colors.muted, fontSize: 15, fontWeight: "400", textAlign: "center", lineHeight: 22 },
   card: {
     backgroundColor: colors.white,
     borderRadius:    20,
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
     elevation:       3,
   },
   cardMeta:      { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
-  cardType:      { color: colors.amber, fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
+  cardType:      { color: colors.amber, fontSize: 11, fontWeight: "600", letterSpacing: 1 },
   cardDot:       { color: colors.muted, fontSize: 10 },
-  cardCat:       { color: colors.slate, fontSize: 11, fontWeight: "600" },
-  cardDesc:      { color: colors.navy, fontWeight: "700", fontSize: 15, marginBottom: 10, lineHeight: 21 },
+  cardCat:       { color: colors.slate, fontSize: 12, fontWeight: "400" },
+  cardDesc:      { color: colors.navy, fontWeight: "800", fontSize: 15, marginBottom: 10, lineHeight: 22 },
   pill:          { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  pillText:      { fontSize: 11, fontWeight: "700" },
+  pillText:      { fontSize: 11, fontWeight: "600" },
   chevronWrap:   { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(15,23,42,0.05)", alignItems: "center", justifyContent: "center" },
 });

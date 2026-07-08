@@ -69,10 +69,10 @@ export default function CategoryScreen() {
 const styles = StyleSheet.create({
   safe:              { flex: 1, backgroundColor: colors.navy },
   back:              { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
-  backText:          { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "600" },
+  backText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
   content:           { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
   title:             { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
-  sub:               { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "500", marginBottom: 28 },
+  sub: { color: colors.muted, fontSize: 15, fontWeight: "400", lineHeight: 22 },
   grid:              { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: {
     width:           "47.5%",
