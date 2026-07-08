@@ -42,11 +42,11 @@ export default function SignUpScreen() {
     setIsAuthenticated(true);
     addJob({
       id:          Date.now().toString(),
-      type:        inquiry.type ?? "inquiry",
+      type:        inquiry.type ?? "enquiry",
       category:    inquiry.category,
       description: inquiry.description,
       address:     inquiry.address,
-      status:      "New",
+      status:      "Enquiry Received",
       date:        new Date().toISOString(),
       photos:      inquiry.photos,
       updates:     [],
@@ -64,7 +64,7 @@ export default function SignUpScreen() {
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Create your{"\n"}account</Text>
-        <Text style={styles.sub}>Your inquiry will be submitted right after</Text>
+        <Text style={styles.sub}>Your enquiry will be submitted right after</Text>
 
         {[
           { label: "FULL NAME",  value: name,     set: setName,     placeholder: "Your full name",    kb: "default"       },

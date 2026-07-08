@@ -7,7 +7,7 @@ import { StepProgress } from "@/components/ui/StepProgress";
 
 const options: { type: InquiryType; label: string; desc: string; icon: typeof AlertCircle }[] = [
   { type: "issue",   label: "Report an Issue",  desc: "Something needs fixing or repairing", icon: AlertCircle },
-  { type: "inquiry", label: "Request a Quote",  desc: "Looking for a quote or project work",  icon: HelpCircle  },
+  { type: "enquiry", label: "Request a Quote",  desc: "Looking for a quote or project work",  icon: HelpCircle  },
 ];
 
 export default function TypeScreen() {
@@ -30,7 +30,7 @@ export default function TypeScreen() {
 
       <View style={styles.content}>
         <Text style={styles.title}>What do you{"\n"}need help with?</Text>
-        <Text style={styles.sub}>Select the type of request</Text>
+        <Text style={styles.sub}>Select the type of enquiry</Text>
 
         <View style={styles.options}>
           {options.map(({ type, label, desc, icon: Icon }) => (

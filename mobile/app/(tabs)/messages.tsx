@@ -101,7 +101,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
         ListEmptyComponent={
           <View style={thread.emptyBubble}>
             <Text style={thread.emptyBubbleText}>
-              Your inquiry has been submitted. A contractor will respond shortly.
+              Your enquiry has been submitted. A contractor will respond shortly.
             </Text>
           </View>
         }
@@ -183,7 +183,7 @@ export default function MessagesScreen() {
             Once a contractor is assigned to your job, your conversation will appear here.
           </Text>
           <Button
-            label="Start an Inquiry"
+            label="Start an Enquiry"
             onPress={() => router.push("/inquiry/type")}
             style={{ marginTop: 24, width: "100%" }}
           />

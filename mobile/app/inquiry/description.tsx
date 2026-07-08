@@ -24,7 +24,7 @@ export default function DescriptionScreen() {
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo library access to add photos to your inquiry.");
+      Alert.alert("Permission needed", "Allow photo library access to add photos to your enquiry.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -40,7 +40,7 @@ export default function DescriptionScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow camera access to take a photo for your inquiry.");
+      Alert.alert("Permission needed", "Allow camera access to take a photo for your enquiry.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({

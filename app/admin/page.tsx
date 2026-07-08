@@ -1,36 +1,25 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
-  LayoutDashboard,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Search,
-  Filter,
-  Send,
-  X,
-  Loader2,
-  RefreshCw,
-  FileText,
-  CalendarCheck,
-  XCircle,
+  LayoutDashboard, Clock, CheckCircle, AlertCircle, Search, Filter,
+  Send, X, Loader2, RefreshCw, ChevronRight, MessageSquare, ArrowRight,
+  Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { createClient } from "@supabase/supabase-js"
+import { JOURNEY_STEPS, nextStatus, statusTone, STATUS_PILL_CLASSES, type JobStatus } from "@/lib/status"
 
-type JobStatus = "New" | "Quoted" | "Booked" | "In Progress" | "Complete" | "Cancelled"
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
 type FilterStatus = "all" | JobStatus
 
-interface JobUpdate {
-  id: string
-  message: string
-  type: "status_change" | "note"
-  created_at: string
-}
-
-interface JobPhoto {
-  url: string
-}
+interface JobUpdate { id: string; message: string; type: "status_change" | "note"; created_at: string }
+interface JobPhoto  { url: string }
+interface Message   { id: string; body: string; sender: "user" | "contractor"; created_at: string }
 
 interface AdminJob {
   id: string
@@ -38,7 +27,7 @@ interface AdminJob {
   customer_phone: string
   customer_contact_preference: string
   address: string
-  type: "issue" | "inquiry"
+  type: "issue" | "enquiry" | "inquiry"
   category: string
   description: string
   status: JobStatus
@@ -50,33 +39,34 @@ interface AdminJob {
   sheets_row_index: number | null
   job_photos: JobPhoto[]
   job_updates: JobUpdate[]
-}
-
-const STATUS_OPTIONS: JobStatus[] = ["New", "Quoted", "Booked", "In Progress", "Complete", "Cancelled"]
-
-const statusConfig: Record<JobStatus, { label: string; icon: typeof AlertCircle; color: string }> = {
-  "New":         { label: "New",         icon: AlertCircle,   color: "text-amber-600 bg-amber-50"      },
-  "Quoted":      { label: "Quoted",      icon: FileText,      color: "text-amber-600 bg-amber-50"      },
-  "Booked":      { label: "Booked",      icon: CalendarCheck, color: "text-amber-600 bg-amber-50"      },
-  "In Progress": { label: "In Progress", icon: Clock,         color: "text-amber-600 bg-amber-50"      },
-  "Complete":    { label: "Complete",    icon: CheckCircle,   color: "text-emerald-600 bg-emerald-50"  },
-  "Cancelled":   { label: "Cancelled",   icon: XCircle,       color: "text-red-500 bg-red-50"          },
+  unread?: boolean
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) +
+    ", " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
 
 export default function AdminDashboard() {
-  const [jobs, setJobs]             = useState<AdminJob[]>([])
-  const [loading, setLoading]       = useState(true)
+  const [jobs, setJobs]               = useState<AdminJob[]>([])
+  const [loading, setLoading]         = useState(true)
   const [selectedJob, setSelectedJob] = useState<AdminJob | null>(null)
-  const [filter, setFilter]         = useState<FilterStatus>("all")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [newNote, setNewNote]       = useState("")
-  const [saving, setSaving]         = useState(false)
+  const [filter, setFilter]           = useState<FilterStatus>("all")
+  const [search, setSearch]           = useState("")
+  const [saving, setSaving]           = useState(false)
+  const [activePanel, setActivePanel] = useState<"details" | "messages">("details")
 
-  // ── Fetch all jobs ─────────────────────────────────────────
+  // Messaging
+  const [messages, setMessages] = useState<Message[]>([])
+  const [msgLoading, setMsgLoading] = useState(false)
+  const [draft, setDraft]           = useState("")
+  const [unreadMap, setUnreadMap]   = useState<Record<string, boolean>>({})
+  const msgEndRef = useRef<HTMLDivElement>(null)
+
   const loadJobs = useCallback(async () => {
     setLoading(true)
     try {
@@ -84,34 +74,72 @@ export default function AdminDashboard() {
       const data = await res.json()
       if (data.jobs) {
         setJobs(data.jobs)
-        // Refresh selected job if it's open
         if (selectedJob) {
           const refreshed = data.jobs.find((j: AdminJob) => j.id === selectedJob.id)
           if (refreshed) setSelectedJob(refreshed)
         }
       }
-    } catch (err) {
-      console.error("Failed to load jobs:", err)
-    } finally {
-      setLoading(false)
-    }
+    } catch { /* non-fatal */ }
+    finally { setLoading(false) }
   }, [selectedJob])
 
-  useEffect(() => {
-    loadJobs()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadJobs() }, []) // eslint-disable-line
 
-  // ── PATCH helper ──────────────────────────────────────────
-  const patchJob = async (
-    jobId: string,
-    payload: {
-      status?: string
-      assigned_to?: string
-      estimated_value?: number | null
-      actual_value?: number | null
-      note?: string
+  // Load messages + subscribe to realtime when panel open
+  useEffect(() => {
+    if (!selectedJob || activePanel !== "messages") return
+    let channel: ReturnType<typeof supabase.channel>
+
+    const load = async () => {
+      setMsgLoading(true)
+      const { data } = await supabase
+        .from("messages")
+        .select("id, body, sender, created_at")
+        .eq("job_id", selectedJob.id)
+        .order("created_at", { ascending: true })
+      setMessages((data ?? []) as Message[])
+      setMsgLoading(false)
+      // Mark read
+      setUnreadMap((m) => ({ ...m, [selectedJob.id]: false }))
+      setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100)
     }
-  ) => {
+
+    load()
+
+    channel = supabase
+      .channel(`admin-messages:${selectedJob.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `job_id=eq.${selectedJob.id}`,
+      }, (payload) => {
+        setMessages((prev) => [...prev, payload.new as Message])
+        setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [selectedJob?.id, activePanel])
+
+  // Global realtime subscription to detect new customer messages
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-unread")
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+      }, (payload) => {
+        const msg = payload.new as Message & { job_id: string }
+        if (msg.sender === "user") {
+          setUnreadMap((m) => ({ ...m, [msg.job_id]: true }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  const patchJob = async (jobId: string, payload: {
+    status?: string; assigned_to?: string;
+    estimated_value?: number | null; actual_value?: number | null; note?: string
+  }) => {
     setSaving(true)
     try {
       const res = await fetch(`/api/admin/jobs/${jobId}`, {
@@ -119,55 +147,50 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error("Save failed")
+      if (!res.ok) throw new Error()
       await loadJobs()
-    } catch (err) {
-      console.error("Patch error:", err)
+    } catch {
       alert("Failed to save. Please try again.")
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  const handleStatusChange = (jobId: string, newStatus: JobStatus) => {
-    patchJob(jobId, { status: newStatus })
-  }
-
-  const handleAddNote = () => {
-    if (!newNote.trim() || !selectedJob) return
-    patchJob(selectedJob.id, { note: newNote.trim() })
-    setNewNote("")
-  }
-
-  const handleFieldBlur = (field: "assigned_to" | "estimated_value" | "actual_value", value: string) => {
+  const advanceStatus = () => {
     if (!selectedJob) return
-    if (field === "assigned_to") {
-      patchJob(selectedJob.id, { assigned_to: value })
-    } else if (field === "estimated_value") {
-      patchJob(selectedJob.id, { estimated_value: value ? parseFloat(value) : null })
-    } else {
-      patchJob(selectedJob.id, { actual_value: value ? parseFloat(value) : null })
-    }
+    const next = nextStatus(selectedJob.status)
+    if (next) patchJob(selectedJob.id, { status: next })
   }
 
-  // ── Filtered jobs ─────────────────────────────────────────
-  const filteredJobs = jobs.filter((job) => {
-    const matchesFilter = filter === "all" || job.status === filter
-    const q = searchQuery.toLowerCase()
-    const matchesSearch =
-      job.customer_name.toLowerCase().includes(q) ||
-      job.category.toLowerCase().includes(q) ||
-      job.address.toLowerCase().includes(q) ||
-      job.description.toLowerCase().includes(q)
-    return matchesFilter && matchesSearch
+  const sendMessage = async () => {
+    const body = draft.trim()
+    if (!body || !selectedJob) return
+    setDraft("")
+    const optimistic: Message = { id: `opt-${Date.now()}`, body, sender: "contractor", created_at: new Date().toISOString() }
+    setMessages((prev) => [...prev, optimistic])
+    await supabase.from("messages").insert({ job_id: selectedJob.id, body, sender: "contractor" })
+    setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+  }
+
+  const filteredJobs = jobs.filter((j) => {
+    const ok = filter === "all" || j.status === filter
+    const q  = search.toLowerCase()
+    return ok && (
+      j.customer_name.toLowerCase().includes(q) ||
+      j.category.toLowerCase().includes(q) ||
+      j.address.toLowerCase().includes(q) ||
+      j.description.toLowerCase().includes(q)
+    )
   })
 
   const stats = {
-    total:      jobs.length,
-    new:        jobs.filter((j) => j.status === "New").length,
-    active:     jobs.filter((j) => ["Quoted", "Booked", "In Progress"].includes(j.status)).length,
-    complete:   jobs.filter((j) => j.status === "Complete").length,
+    total:    jobs.length,
+    new:      jobs.filter((j) => j.status === "Enquiry Received").length,
+    active:   jobs.filter((j) => ["Assigning Contractor","Contractor Assigned","Quote Ready","Job Underway"].includes(j.status)).length,
+    complete: jobs.filter((j) => j.status === "Job Completed").length,
   }
+
+  const tone    = selectedJob ? statusTone(selectedJob.status) : "active"
+  const pillCls = selectedJob ? STATUS_PILL_CLASSES[tone] : ""
+  const canAdvance = selectedJob && nextStatus(selectedJob.status) !== null
 
   return (
     <div className="min-h-screen bg-background">
@@ -178,77 +201,63 @@ export default function AdminDashboard() {
             <span className="text-[#0F172A] font-bold text-lg">B</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Braxton Works</h1>
+            <h1 className="text-xl font-bold text-white">Build.me</h1>
             <p className="text-sm text-white/60">Admin Dashboard</p>
           </div>
         </div>
-        <button
-          onClick={loadJobs}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg btn-secondary text-sm text-white/70 hover:text-white"
-        >
+        <button onClick={loadJobs} disabled={loading}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg btn-secondary text-sm text-white/70 hover:text-white">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           Refresh
         </button>
       </header>
 
       <div className="flex">
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 min-w-0">
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: "Total Jobs",  value: stats.total,    icon: LayoutDashboard, color: "text-[#64748B] bg-[#F1F5F9]"  },
-              { label: "New",         value: stats.new,      icon: AlertCircle,     color: "text-amber-600 bg-amber-50"   },
-              { label: "Active",      value: stats.active,   icon: Clock,           color: "text-amber-600 bg-amber-50"   },
-              { label: "Complete",    value: stats.complete, icon: CheckCircle,     color: "text-emerald-600 bg-emerald-50" },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="card-surface rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", color)}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#0F172A]">{value}</p>
-                    <p className="text-sm text-[#64748B]">{label}</p>
-                  </div>
+              { label: "Total", value: stats.total,    color: "text-[#64748B] bg-[#F1F5F9]",   icon: LayoutDashboard },
+              { label: "New",   value: stats.new,      color: "text-amber-600 bg-amber-50",     icon: AlertCircle     },
+              { label: "Active",value: stats.active,   color: "text-amber-600 bg-amber-50",     icon: Clock           },
+              { label: "Done",  value: stats.complete, color: "text-emerald-600 bg-emerald-50", icon: CheckCircle     },
+            ].map(({ label, value, color, icon: Icon }) => (
+              <div key={label} className="card-surface rounded-xl p-4 flex items-center gap-3">
+                <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", color)}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-[#0F172A]">{value}</p>
+                  <p className="text-sm text-[#64748B]">{label}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Filters */}
+          {/* Search + filter */}
           <div className="flex items-center gap-4 mb-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, category, address..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none"
-              />
+              <input value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, category, address…"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none" />
             </div>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-white/60" />
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as FilterStatus)}
-                className="px-3 py-2.5 rounded-lg input-field focus:outline-none"
-              >
-                <option value="all">All Status</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+              <select value={filter} onChange={(e) => setFilter(e.target.value as FilterStatus)}
+                className="px-3 py-2.5 rounded-lg input-field focus:outline-none">
+                <option value="all">All statuses</option>
+                {JOURNEY_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
           </div>
 
-          {/* Jobs Table */}
+          {/* Table */}
           <div className="card-surface rounded-xl overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-16 gap-3 text-[#64748B]">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Loading jobs...
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading…
               </div>
             ) : filteredJobs.length === 0 ? (
               <div className="text-center py-16 text-[#64748B]">No jobs found</div>
@@ -256,51 +265,41 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Customer</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Type</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Category</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Status</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Date</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">Actions</th>
+                    {["Customer","Type","Category","Status","Date",""].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredJobs.map((job) => {
-                    const cfg        = statusConfig[job.status]
-                    const StatusIcon = cfg.icon
+                    const t    = statusTone(job.status)
+                    const cls  = STATUS_PILL_CLASSES[t]
+                    const hasUnread = unreadMap[job.id]
                     return (
-                      <tr
-                        key={job.id}
-                        className={cn(
-                          "border-t border-[#E2E8F0] hover:bg-[#F8FAFC] cursor-pointer transition-colors",
-                          selectedJob?.id === job.id && "bg-[#F1F5F9]"
-                        )}
-                        onClick={() => setSelectedJob(job)}
-                      >
+                      <tr key={job.id}
+                        className={cn("border-t border-[#E2E8F0] hover:bg-[#F8FAFC] cursor-pointer transition-colors",
+                          selectedJob?.id === job.id && "bg-[#F1F5F9]")}
+                        onClick={() => { setSelectedJob(job); setActivePanel("details") }}>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-[#0F172A]">{job.customer_name}</p>
-                          <p className="text-sm text-[#64748B] truncate max-w-xs">{job.address}</p>
+                          <div className="flex items-center gap-2">
+                            {hasUnread && <span className="h-2 w-2 rounded-full bg-[#F59E0B] flex-shrink-0" />}
+                            <div>
+                              <p className="font-medium text-[#0F172A]">{job.customer_name}</p>
+                              <p className="text-sm text-[#64748B] truncate max-w-[160px]">{job.address}</p>
+                            </div>
+                          </div>
                         </td>
+                        <td className="px-4 py-3 text-sm text-[#64748B] capitalize">{job.type}</td>
+                        <td className="px-4 py-3 text-sm text-[#0F172A]">{job.category}</td>
                         <td className="px-4 py-3">
-                          <span className="text-sm text-[#64748B] capitalize">{job.type}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-[#0F172A]">{job.category}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", cfg.color)}>
-                            <StatusIcon className="h-3.5 w-3.5" />
-                            {cfg.label}
+                          <span className={cn("inline-flex px-2.5 py-1 rounded-full text-xs font-medium", cls)}>
+                            {job.status}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm text-[#64748B]">{formatDate(job.created_at)}</td>
                         <td className="px-4 py-3">
-                          <span className="text-sm text-[#64748B]">{formatDate(job.created_at)}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedJob(job) }}
-                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] transition-all text-[#0F172A]"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedJob(job); setActivePanel("details") }}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] transition-all text-[#0F172A]">
                             View
                           </button>
                         </td>
@@ -313,148 +312,225 @@ export default function AdminDashboard() {
           </div>
         </main>
 
-        {/* Job Detail Panel */}
+        {/* Detail panel */}
         {selectedJob && (
-          <aside className="w-96 border-l border-white/10 card-surface rounded-none p-6 overflow-y-auto max-h-[calc(100vh-73px)] sticky top-[73px]">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-[#0F172A]">Job Details</h2>
-              <button
-                onClick={() => setSelectedJob(null)}
-                className="h-8 w-8 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] flex items-center justify-center transition-all"
-              >
+          <aside className="w-[400px] border-l border-white/10 card-surface rounded-none overflow-y-auto max-h-[calc(100vh-73px)] sticky top-[73px] flex flex-col">
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0]">
+              <div className="flex gap-1">
+                {(["details", "messages"] as const).map((p) => (
+                  <button key={p} onClick={() => setActivePanel(p)}
+                    className={cn("px-3 py-1.5 rounded-lg text-sm font-medium relative transition-colors",
+                      activePanel === p
+                        ? "bg-[#0F172A] text-white"
+                        : "text-[#64748B] hover:text-[#0F172A]")}>
+                    {p === "messages" ? "Messages" : "Details"}
+                    {p === "messages" && unreadMap[selectedJob.id] && (
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#F59E0B]" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setSelectedJob(null)}
+                className="h-8 w-8 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] flex items-center justify-center">
                 <X className="h-4 w-4 text-[#64748B]" />
               </button>
             </div>
 
-            {/* Status */}
-            <div className="mb-5">
-              <label className="text-sm font-medium text-[#64748B] mb-2 block">Status</label>
-              <select
-                value={selectedJob.status}
-                onChange={(e) => handleStatusChange(selectedJob.id, e.target.value as JobStatus)}
-                disabled={saving}
-                className="w-full px-3 py-2.5 rounded-lg input-field focus:outline-none"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Customer Info */}
-            <div className="space-y-3 mb-5 pb-5 border-b border-[#E2E8F0]">
-              <div>
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-1">Customer</p>
-                <p className="font-medium text-[#0F172A]">{selectedJob.customer_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-1">Phone</p>
-                <p className="font-medium text-[#0F172A]">{selectedJob.customer_phone || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-1">Contact preference</p>
-                <p className="text-[#0F172A] capitalize">{selectedJob.customer_contact_preference || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-1">Address</p>
-                <p className="text-[#0F172A]">{selectedJob.address}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-1">Description</p>
-                <p className="text-[#0F172A] text-sm leading-relaxed">{selectedJob.description}</p>
-              </div>
-            </div>
-
-            {/* Operational Fields */}
-            <div className="space-y-3 mb-5 pb-5 border-b border-[#E2E8F0]">
-              <div>
-                <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Assigned to</label>
-                <input
-                  type="text"
-                  defaultValue={selectedJob.assigned_to ?? ""}
-                  onBlur={(e) => handleFieldBlur("assigned_to", e.target.value)}
-                  placeholder="Operative name"
-                  className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            {activePanel === "details" ? (
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                {/* Status journey */}
                 <div>
-                  <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Est. value (£)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    defaultValue={selectedJob.estimated_value ?? ""}
-                    onBlur={(e) => handleFieldBlur("estimated_value", e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Actual value (£)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    defaultValue={selectedJob.actual_value ?? ""}
-                    onBlur={(e) => handleFieldBlur("actual_value", e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+                  <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3">Status Journey</p>
+                  <div className="space-y-0">
+                    {JOURNEY_STEPS.map((step, i) => {
+                      const current = JOURNEY_STEPS.indexOf(selectedJob.status)
+                      const isDone  = i < current
+                      const isNow   = i === current
+                      const isLast  = i === JOURNEY_STEPS.length - 1
+                      return (
+                        <div key={step} className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={cn(
+                              "h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs",
+                              isDone ? "bg-[#F59E0B]" : isNow ? "bg-[#F59E0B] ring-4 ring-amber-100" : "bg-[#E2E8F0]"
+                            )}>
+                              {isDone
+                                ? <Check className="h-3 w-3 text-[#0F172A]" />
+                                : <span className={cn("text-xs font-bold", isNow ? "text-[#0F172A]" : "text-[#94A3B8]")}>{i+1}</span>
+                              }
+                            </div>
+                            {!isLast && <div className={cn("w-0.5 h-5 mt-0.5", isDone ? "bg-[#F59E0B]" : "bg-[#E2E8F0]")} />}
+                          </div>
+                          <p className={cn("text-sm pb-4 pt-0.5",
+                            isDone ? "text-[#0F172A] font-medium" : isNow ? "text-[#0F172A] font-bold" : "text-[#94A3B8]")}>
+                            {step}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
 
-            {/* Photos */}
-            {selectedJob.job_photos.length > 0 && (
-              <div className="mb-5 pb-5 border-b border-[#E2E8F0]">
-                <p className="text-xs text-[#64748B] uppercase tracking-wide mb-3">Photos</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {selectedJob.job_photos.map((photo, i) => (
-                    <a key={i} href={photo.url} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={photo.url}
-                        alt={`Photo ${i + 1}`}
-                        className="aspect-square rounded-lg object-cover w-full hover:opacity-80 transition-opacity"
-                      />
-                    </a>
+                  {/* Advance button */}
+                  {canAdvance && (
+                    <button onClick={advanceStatus} disabled={saving}
+                      className="w-full mt-2 py-2.5 rounded-lg bg-[#F59E0B] hover:bg-[#D97706] text-[#0F172A] font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                      Advance to: {nextStatus(selectedJob.status)}
+                    </button>
+                  )}
+                  {!canAdvance && selectedJob.status !== "Cancelled" && (
+                    <div className="mt-2 py-2.5 px-3 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium text-center">
+                      ✓ Job Completed
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-[#E2E8F0]" />
+
+                {/* Customer info */}
+                <div className="space-y-3">
+                  {[
+                    { label: "Customer",  value: selectedJob.customer_name },
+                    { label: "Phone",     value: selectedJob.customer_phone || "—" },
+                    { label: "Contact",   value: selectedJob.customer_contact_preference || "—" },
+                    { label: "Address",   value: selectedJob.address },
+                    { label: "Category",  value: selectedJob.category },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-xs text-[#64748B] uppercase tracking-wide mb-0.5">{label}</p>
+                      <p className="text-sm font-medium text-[#0F172A]">{value}</p>
+                    </div>
                   ))}
+                  <div>
+                    <p className="text-xs text-[#64748B] uppercase tracking-wide mb-0.5">Description</p>
+                    <p className="text-sm text-[#0F172A] leading-relaxed">{selectedJob.description}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#E2E8F0]" />
+
+                {/* Ops fields */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Assigned to</label>
+                    <input type="text" defaultValue={selectedJob.assigned_to ?? ""}
+                      onBlur={(e) => patchJob(selectedJob.id, { assigned_to: e.target.value })}
+                      placeholder="Operative name"
+                      className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Est. (£)</label>
+                      <input type="number" step="0.01" defaultValue={selectedJob.estimated_value ?? ""}
+                        onBlur={(e) => patchJob(selectedJob.id, { estimated_value: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#64748B] uppercase tracking-wide mb-1 block">Actual (£)</label>
+                      <input type="number" step="0.01" defaultValue={selectedJob.actual_value ?? ""}
+                        onBlur={(e) => patchJob(selectedJob.id, { actual_value: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Photos */}
+                {selectedJob.job_photos.length > 0 && (
+                  <>
+                    <div className="border-t border-[#E2E8F0]" />
+                    <div>
+                      <p className="text-xs text-[#64748B] uppercase tracking-wide mb-3">Photos</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedJob.job_photos.map((photo, i) => (
+                          <a key={i} href={photo.url} target="_blank" rel="noopener noreferrer">
+                            <img src={photo.url} alt="" className="aspect-square rounded-lg object-cover w-full hover:opacity-80 transition-opacity" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Notes */}
+                <div className="border-t border-[#E2E8F0]" />
+                <div>
+                  <p className="text-xs text-[#64748B] uppercase tracking-wide mb-3">Internal Notes</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto mb-3">
+                    {(selectedJob.job_updates ?? [])
+                      .filter((u) => u.type === "note")
+                      .sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((u) => (
+                        <div key={u.id} className="bg-[#F8FAFC] rounded-lg p-3 border border-[#E2E8F0]">
+                          <p className="text-sm text-[#0F172A]">{u.message}</p>
+                          <p className="text-xs text-[#64748B] mt-1">{formatDate(u.created_at)}</p>
+                        </div>
+                      ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="text" id="note-input" placeholder="Add a note…"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const v = (e.target as HTMLInputElement).value.trim()
+                          if (v) { patchJob(selectedJob.id, { note: v }); (e.target as HTMLInputElement).value = "" }
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById("note-input") as HTMLInputElement
+                        if (el?.value.trim()) { patchJob(selectedJob.id, { note: el.value.trim() }); el.value = "" }
+                      }}
+                      disabled={saving}
+                      className="px-3 py-2 rounded-lg btn-primary disabled:cursor-not-allowed">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Messages panel */
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {msgLoading
+                    ? <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-[#64748B]" /></div>
+                    : messages.length === 0
+                      ? <p className="text-center text-sm text-[#64748B] py-8">No messages yet.</p>
+                      : messages.map((msg) => {
+                          const isUs = msg.sender === "contractor"
+                          return (
+                            <div key={msg.id} className={cn("flex", isUs ? "justify-end" : "justify-start")}>
+                              <div className={cn("max-w-[78%] rounded-2xl px-4 py-2.5",
+                                isUs ? "bg-[#F59E0B] rounded-br-sm" : "bg-[#F1F5F9] rounded-bl-sm")}>
+                                <p className={cn("text-sm", isUs ? "text-[#0F172A] font-medium" : "text-[#0F172A]")}>
+                                  {msg.body}
+                                </p>
+                                <p className={cn("text-xs mt-1", isUs ? "text-[#0F172A]/60 text-right" : "text-[#64748B]")}>
+                                  {formatTime(msg.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })
+                  }
+                  <div ref={msgEndRef} />
+                </div>
+                <div className="border-t border-[#E2E8F0] p-3 flex gap-2">
+                  <input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                    placeholder="Reply to customer…"
+                    className="flex-1 px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
+                  <button onClick={sendMessage} disabled={!draft.trim() || saving}
+                    className="px-3 py-2 rounded-lg btn-primary disabled:cursor-not-allowed disabled:opacity-50">
+                    <Send className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* Notes & Updates */}
-            <div>
-              <h3 className="text-sm font-medium text-[#64748B] mb-3">Notes & Updates</h3>
-              <div className="space-y-2 max-h-52 overflow-y-auto mb-3">
-                {(selectedJob.job_updates ?? [])
-                  .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                  .map((update) => (
-                    <div key={update.id} className="bg-[#F8FAFC] rounded-lg p-3 border border-[#E2E8F0]">
-                      <p className="text-sm text-[#0F172A]">{update.message}</p>
-                      <p className="text-xs text-[#64748B] mt-1">
-                        {update.type === "note" ? "Note" : "System"} • {formatDate(update.created_at)}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
-                  placeholder="Add a note..."
-                  className="flex-1 px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm"
-                />
-                <button
-                  onClick={handleAddNote}
-                  disabled={!newNote.trim() || saving}
-                  className="px-3 py-2 rounded-lg btn-primary disabled:cursor-not-allowed"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
           </aside>
         )}
       </div>

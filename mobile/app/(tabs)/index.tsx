@@ -64,7 +64,7 @@ export default function HomeScreen() {
 
         {/* CTA — above the fold */}
         <Button
-          label="Start your inquiry"
+          label="Start your enquiry"
           onPress={() => router.push("/inquiry/type")}
           style={styles.cta}
         />

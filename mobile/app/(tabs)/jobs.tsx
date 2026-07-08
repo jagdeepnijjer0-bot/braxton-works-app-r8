@@ -6,7 +6,7 @@ import { Wrench, ChevronRight } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
-import { STATUS_DISPLAY, STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES } from "@/lib/status";
+import { STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES } from "@/lib/status";
 import { useState } from "react";
 
 type Tab = "active" | "completed";
@@ -24,7 +24,7 @@ export default function JobsScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>My Jobs</Text>
-        <Text style={styles.sub}>{jobs.length > 0 ? `${jobs.length} total` : "Track your requests"}</Text>
+        <Text style={styles.sub}>{jobs.length > 0 ? `${jobs.length} total` : "Track your enquiries"}</Text>
       </View>
 
       <View style={styles.tabRow}>
@@ -53,12 +53,12 @@ export default function JobsScreen() {
             </Text>
             <Text style={styles.emptyBody}>
               {tab === "active"
-                ? "Got something that needs fixing? Start an inquiry."
+                ? "Got something that needs fixing? Start an enquiry."
                 : "Completed jobs will appear here."}
             </Text>
             {tab === "active" && (
               <Button
-                label="Start an Inquiry"
+                label="Start an Enquiry"
                 onPress={() => router.push("/inquiry/type")}
                 style={{ marginTop: 20, width: "100%" }}
               />
@@ -69,17 +69,22 @@ export default function JobsScreen() {
             const tone = statusTone(job.status);
             const pill = STATUS_PILL_COLORS[tone];
             return (
-              <TouchableOpacity key={job.id} style={styles.card} activeOpacity={0.85}>
+              <TouchableOpacity
+                key={job.id}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/job/${job.id}`)}
+              >
                 <View style={{ flex: 1 }}>
                   <View style={styles.cardMeta}>
-                    <Text style={styles.cardType}>{job.type === "issue" ? "ISSUE" : "INQUIRY"}</Text>
+                    <Text style={styles.cardType}>{job.type === "issue" ? "ISSUE" : "ENQUIRY"}</Text>
                     <Text style={styles.cardDot}>·</Text>
                     <Text style={styles.cardCat}>{job.category}</Text>
                   </View>
                   <Text style={styles.cardDesc} numberOfLines={2}>{job.description}</Text>
                   <View style={[styles.pill, { backgroundColor: pill.bg }]}>
                     <Text style={[styles.pillText, { color: pill.text }]}>
-                      {STATUS_DISPLAY[job.status]}
+                      {job.status}
                     </Text>
                   </View>
                 </View>
@@ -101,12 +106,12 @@ const styles = StyleSheet.create({
   title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
   sub:           { color: colors.muted, fontSize: 14, fontWeight: "400", marginTop: 4 },
   tabRow: {
-    flexDirection:   "row",
+    flexDirection:    "row",
     marginHorizontal: 22,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius:    16,
-    padding:         4,
-    marginBottom:    18,
+    backgroundColor:  "rgba(255,255,255,0.07)",
+    borderRadius:     16,
+    padding:          4,
+    marginBottom:     18,
   },
   tab:           { flex: 1, paddingVertical: 11, borderRadius: 13, alignItems: "center" },
   tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
