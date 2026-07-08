@@ -5,7 +5,7 @@ import { AppProvider } from "@/lib/context";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-import { useRouter, useSegments } from "expo-router";
+import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
 
 // Force class-based dark mode so the app always uses its navy theme
@@ -14,17 +14,21 @@ StyleSheet.setFlag?.("darkMode", "class");
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
-  const segments = useSegments();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("onboarding_done").then((val) => {
+    const check = async () => {
+      // In development, always reset the flag so the walkthrough can be tested.
+      if (__DEV__) {
+        await AsyncStorage.removeItem("onboarding_done");
+      }
+      const val = await AsyncStorage.getItem("onboarding_done");
       if (!val) {
-        // Not yet done — navigate to onboarding
         router.replace("/onboarding");
       }
       setChecked(true);
-    });
+    };
+    check();
   }, []);
 
   if (!checked) return null;
