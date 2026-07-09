@@ -28,10 +28,15 @@ export function nextStatus(current: JobStatus): JobStatus | null {
 
 export type StatusTone = "active" | "complete" | "cancelled"
 
-export function statusTone(status: JobStatus): StatusTone {
+export function statusTone(status: string): StatusTone {
   if (status === "Job Completed") return "complete"
   if (status === "Cancelled")     return "cancelled"
   return "active"
+}
+
+/** Safe pill class lookup — never throws for unknown statuses */
+export function statusPillClass(status: string): string {
+  return STATUS_PILL_CLASSES[statusTone(status)] ?? STATUS_PILL_CLASSES.active
 }
 
 export const STATUS_PILL_CLASSES: Record<StatusTone, string> = {

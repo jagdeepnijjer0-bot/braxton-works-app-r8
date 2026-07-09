@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
-import { JOURNEY_STEPS, nextStatus, statusTone, STATUS_PILL_CLASSES, type JobStatus } from "@/lib/status"
+import { JOURNEY_STEPS, nextStatus, statusTone, STATUS_PILL_CLASSES, statusPillClass, type JobStatus } from "@/lib/status"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -189,7 +189,7 @@ export default function AdminDashboard() {
   }
 
   const tone    = selectedJob ? statusTone(selectedJob.status) : "active"
-  const pillCls = selectedJob ? STATUS_PILL_CLASSES[tone] : ""
+  const pillCls = selectedJob ? statusPillClass(selectedJob.status) : ""
   const canAdvance = selectedJob && nextStatus(selectedJob.status) !== null
 
   return (
@@ -272,8 +272,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {filteredJobs.map((job) => {
-                    const t    = statusTone(job.status)
-                    const cls  = STATUS_PILL_CLASSES[t]
+                    const cls  = statusPillClass(job.status)
                     const hasUnread = unreadMap[job.id]
                     return (
                       <tr key={job.id}
@@ -344,7 +343,9 @@ export default function AdminDashboard() {
                   <p className="text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3">Status Journey</p>
                   <div className="space-y-0">
                     {JOURNEY_STEPS.map((step, i) => {
-                      const current = JOURNEY_STEPS.indexOf(selectedJob.status)
+                      const currentIdx = JOURNEY_STEPS.indexOf(selectedJob.status)
+                      // -1 means Cancelled or unknown — treat all steps as undone
+                      const current = currentIdx >= 0 ? currentIdx : -999
                       const isDone  = i < current
                       const isNow   = i === current
                       const isLast  = i === JOURNEY_STEPS.length - 1
@@ -379,9 +380,14 @@ export default function AdminDashboard() {
                       Advance to: {nextStatus(selectedJob.status)}
                     </button>
                   )}
-                  {!canAdvance && selectedJob.status !== "Cancelled" && (
+                  {!canAdvance && selectedJob.status === "Job Completed" && (
                     <div className="mt-2 py-2.5 px-3 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium text-center">
                       ✓ Job Completed
+                    </div>
+                  )}
+                  {!canAdvance && selectedJob.status === "Cancelled" && (
+                    <div className="mt-2 py-2.5 px-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium text-center">
+                      ✕ Cancelled
                     </div>
                   )}
                 </div>
