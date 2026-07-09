@@ -14,6 +14,7 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerPushToken(jobId?: string): Promise<string | null> {
+  if (Platform.OS === "web") return null;
   if (!Device.isDevice) return null;
 
   if (Platform.OS === "android") {
@@ -46,6 +47,10 @@ export async function registerPushToken(jobId?: string): Promise<string | null> 
 export function addNotificationResponseListener(
   handler: (jobId: string | null) => void
 ) {
+  if (Platform.OS === "web") {
+    // Web doesn't support Expo push notifications — return a no-op subscription
+    return { remove: () => {} };
+  }
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as Record<string, string>;
     handler(data?.jobId ?? null);
