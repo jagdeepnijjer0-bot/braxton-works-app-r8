@@ -27,7 +27,7 @@ export default function SignUpScreen() {
     setLoading(true);
     setError(null);
 
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },
@@ -40,8 +40,38 @@ export default function SignUpScreen() {
     }
 
     setIsAuthenticated(true);
+
+    // Insert into Supabase — let the DB generate the UUID
+    const { data: jobData, error: jobError } = await supabase
+      .from("jobs")
+      .insert({
+        user_id:     authData.user?.id ?? null,
+        type:        inquiry.type ?? "enquiry",
+        category:    inquiry.category,
+        description: inquiry.description,
+        address:     inquiry.address,
+        status:      "Enquiry Received",
+        timing:      inquiry.timing,
+        chosen_date: inquiry.chosenDate,
+        guest_name:  name || null,
+        guest_phone: inquiry.phone || null,
+        guest_contact_preference: inquiry.contactPreference || null,
+        source:      "app",
+      })
+      .select("id")
+      .single();
+
+    if (jobError || !jobData) {
+      console.error("Job insert error (signup):", JSON.stringify(jobError));
+      setError("Account created, but we couldn't submit your enquiry. Please try again from the home screen.");
+      setLoading(false);
+      return;
+    }
+
+    const jobId = jobData.id as string;
+
     addJob({
-      id:          Date.now().toString(),
+      id:          jobId,
       type:        inquiry.type ?? "enquiry",
       category:    inquiry.category,
       description: inquiry.description,
@@ -51,6 +81,14 @@ export default function SignUpScreen() {
       photos:      inquiry.photos,
       updates:     [],
     });
+
+    // Welcome message (non-fatal)
+    await supabase.from("messages").insert({
+      job_id: jobId,
+      body:   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.",
+      sender: "contractor",
+    }).then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); });
+
     setLoading(false);
     router.replace("/inquiry/confirmation");
   };
