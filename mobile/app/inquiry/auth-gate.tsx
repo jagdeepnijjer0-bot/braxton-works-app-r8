@@ -18,10 +18,14 @@ export default function AuthGateScreen() {
   const [error,   setError]   = useState<string | null>(null);
 
   const submitEnquiry = async (): Promise<string | null> => {
-    // Insert into Supabase — let the DB generate the UUID
-    const { data, error: insertError } = await supabase
+    // Generate UUID client-side so we never need to .select() the row back
+    // (selecting back requires RLS read permission which guests don't have)
+    const jobId: string = crypto.randomUUID();
+
+    const { error: insertError } = await supabase
       .from("jobs")
       .insert({
+        id:          jobId,
         type:        inquiry.type ?? "enquiry",
         category:    inquiry.category,
         description: inquiry.description,
@@ -33,16 +37,13 @@ export default function AuthGateScreen() {
         guest_phone: inquiry.phone || null,
         guest_contact_preference: inquiry.contactPreference || null,
         source:      "app",
-      })
-      .select("id")
-      .single();
+        // No user_id — guest path never has an active session
+      });
 
-    if (insertError || !data) {
+    if (insertError) {
       console.error("Job insert error:", JSON.stringify(insertError));
       return null;
     }
-
-    const jobId = data.id as string;
 
     // Update local state with the real DB id
     addJob({

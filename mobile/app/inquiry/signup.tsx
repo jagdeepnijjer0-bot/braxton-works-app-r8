@@ -41,11 +41,21 @@ export default function SignUpScreen() {
 
     setIsAuthenticated(true);
 
-    // Insert into Supabase — let the DB generate the UUID
-    const { data: jobData, error: jobError } = await supabase
+    // Generate UUID client-side — avoids needing .select() which requires
+    // RLS read permission that unconfirmed signups don't have yet
+    const jobId: string = crypto.randomUUID();
+
+    // Only attach user_id when there's a real confirmed session;
+    // signUp() with email confirmation pending returns a session only if
+    // "Confirm email" is disabled in Supabase Auth settings.
+    const session = authData.session;
+    const userId  = session?.user?.id ?? null;
+
+    const { error: jobError } = await supabase
       .from("jobs")
       .insert({
-        user_id:     authData.user?.id ?? null,
+        id:          jobId,
+        user_id:     userId,
         type:        inquiry.type ?? "enquiry",
         category:    inquiry.category,
         description: inquiry.description,
@@ -57,18 +67,14 @@ export default function SignUpScreen() {
         guest_phone: inquiry.phone || null,
         guest_contact_preference: inquiry.contactPreference || null,
         source:      "app",
-      })
-      .select("id")
-      .single();
+      });
 
-    if (jobError || !jobData) {
+    if (jobError) {
       console.error("Job insert error (signup):", JSON.stringify(jobError));
       setError("Account created, but we couldn't submit your enquiry. Please try again from the home screen.");
       setLoading(false);
       return;
     }
-
-    const jobId = jobData.id as string;
 
     addJob({
       id:          jobId,
