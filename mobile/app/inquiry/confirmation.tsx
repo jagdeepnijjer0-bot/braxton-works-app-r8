@@ -28,7 +28,7 @@ export default function ConfirmationScreen() {
           </View>
         </View>
 
-        <Text style={styles.heading}>Inquiry{"\n"}Submitted</Text>
+        <Text style={styles.heading}>Enquiry{"\n"}Submitted</Text>
         <Text style={styles.sub}>
           We'll be in touch shortly —{"\n"}usually within 2 hours.
         </Text>

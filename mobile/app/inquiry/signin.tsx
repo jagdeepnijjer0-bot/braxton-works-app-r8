@@ -184,7 +184,7 @@ export default function SignInScreen() {
         {loading && <ActivityIndicator color={colors.amber} style={{ marginTop: 16 }} />}
 
         <TouchableOpacity
-          onPress={() => router.push(from === "enquiry" ? "/inquiry/signup" : "/inquiry/signup")}
+          onPress={() => router.push("/inquiry/signup")}
           activeOpacity={0.75}
           style={styles.createWrap}
         >
