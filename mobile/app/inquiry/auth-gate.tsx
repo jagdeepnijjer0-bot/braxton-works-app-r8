@@ -94,6 +94,10 @@ export default function AuthGateScreen() {
     router.replace("/inquiry/confirmation");
   };
 
+  const handleSignIn = () => {
+    router.push("/inquiry/signin?from=enquiry");
+  };
+
   const handleCreateAccount = () => {
     router.push("/inquiry/signup");
   };
@@ -116,6 +120,13 @@ export default function AuthGateScreen() {
           <Button
             label="Create Account"
             onPress={handleCreateAccount}
+            disabled={loading}
+            style={{ marginBottom: 12 }}
+          />
+          <Button
+            label="Sign In"
+            onPress={handleSignIn}
+            variant="secondary"
             disabled={loading}
             style={{ marginBottom: 12 }}
           />
