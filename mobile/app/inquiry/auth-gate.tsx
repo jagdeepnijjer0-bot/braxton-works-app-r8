@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 import { useApp } from "@/lib/context";
 import { supabase } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
+import { persistGuestJobId } from "@/app/_layout";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
@@ -44,6 +45,9 @@ export default function AuthGateScreen() {
       console.error("Job insert error:", JSON.stringify(insertError));
       return null;
     }
+
+    // Persist the ID so it survives web page refresh
+    await persistGuestJobId(jobId);
 
     // Update local state with the real DB id
     addJob({

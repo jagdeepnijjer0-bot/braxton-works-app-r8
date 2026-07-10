@@ -6,15 +6,47 @@ import { Wrench, ChevronRight } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
-import { STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES } from "@/lib/status";
-import { useState } from "react";
+import { STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES, type JobStatus } from "@/lib/status";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { JobUpdate } from "@/lib/context";
 
 type Tab = "active" | "completed";
 
 export default function JobsScreen() {
   const router = useRouter();
-  const { jobs } = useApp();
+  const { jobs, updateJobStatus } = useApp();
   const [tab, setTab] = useState<Tab>("active");
+
+  // Subscribe to UPDATE events on all known jobs so status pills update live
+  useEffect(() => {
+    if (jobs.length === 0) return;
+
+    // One channel per job (Supabase filter only supports eq on one value)
+    const channels = jobs.map((job) =>
+      supabase
+        .channel(`jobs-list:${job.id}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${job.id}` },
+          (payload) => {
+            const newStatus = (payload.new as { status: JobStatus }).status;
+            if (newStatus && newStatus !== job.status) {
+              const u: JobUpdate = {
+                id:         `rt-${Date.now()}`,
+                message:    `Status changed to ${newStatus}`,
+                type:       "status_change",
+                created_at: new Date().toISOString(),
+              };
+              updateJobStatus(job.id, newStatus, u);
+            }
+          }
+        )
+        .subscribe()
+    );
+
+    return () => { channels.forEach((c) => supabase.removeChannel(c)); };
+  }, [jobs.map((j) => j.id).join(",")]); // re-subscribe only when job list changes
 
   const filtered = jobs.filter((j) =>
     tab === "active" ? ACTIVE_STATUSES.includes(j.status) : COMPLETE_STATUSES.includes(j.status)

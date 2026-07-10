@@ -54,25 +54,42 @@ export default function JobDetailScreen() {
   const [updates, setUpdates] = useState<JobUpdate[]>(job?.updates ?? []);
   const currentIdx = job ? stepIndex(job.status) : -1;
 
-  // Realtime subscription for status changes
+  // Realtime: subscribe to both jobs UPDATE and job_updates INSERT
   useEffect(() => {
     if (!id) return;
+
     const channel = supabase
       .channel(`job-detail:${id}`)
+      // Primary signal: jobs row UPDATE → status changed directly from DB value
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${id}` },
+        (payload) => {
+          const newStatus = (payload.new as { status: JobStatus }).status;
+          if (newStatus && newStatus !== job?.status) {
+            const syntheticUpdate: JobUpdate = {
+              id:         `rt-${Date.now()}`,
+              message:    `Status changed to ${newStatus}`,
+              type:       "status_change",
+              created_at: new Date().toISOString(),
+            };
+            updateJobStatus(id, newStatus, syntheticUpdate);
+          }
+        }
+      )
+      // Secondary: job_updates INSERT → append timeline entry
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "job_updates", filter: `job_id=eq.${id}` },
         (payload) => {
           const u = payload.new as JobUpdate;
-          setUpdates((prev) => [...prev, u]);
-          if (u.type === "status_change") {
-            // Derive new status from message "Status changed to X"
-            const match = u.message.match(/Status changed to (.+)/);
-            if (match) updateJobStatus(id, match[1] as JobStatus, u);
-          }
+          setUpdates((prev) =>
+            prev.some((x) => x.id === u.id) ? prev : [...prev, u]
+          );
         }
       )
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 

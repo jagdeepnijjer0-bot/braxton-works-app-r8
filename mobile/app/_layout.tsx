@@ -1,21 +1,35 @@
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { AppProvider, useApp } from "@/lib/context";
+import { AppProvider, useApp, type Job } from "@/lib/context";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
+import { supabase } from "@/lib/supabase";
 
 // Force class-based dark mode so the app always uses its navy theme
 // regardless of the user's system dark mode setting.
 StyleSheet.setFlag?.("darkMode", "class");
 
+const GUEST_JOB_IDS_KEY = "guest_job_ids";
+
+/** Persist a newly-submitted guest job ID so it survives page refresh */
+export async function persistGuestJobId(jobId: string) {
+  try {
+    const raw = await AsyncStorage.getItem(GUEST_JOB_IDS_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!ids.includes(jobId)) {
+      await AsyncStorage.setItem(GUEST_JOB_IDS_KEY, JSON.stringify([...ids, jobId]));
+    }
+  } catch { /* non-fatal */ }
+}
+
 function AppBootstrap({ children }: { children: React.ReactNode }) {
-  const router               = useRouter();
-  const { setPushToken }     = useApp();
-  const [checked, setChecked] = useState(false);
+  const router                          = useRouter();
+  const { setPushToken, setJobs, setIsAuthenticated } = useApp();
+  const [checked, setChecked]           = useState(false);
 
   useEffect(() => {
     const boot = async () => {
@@ -24,19 +38,60 @@ function AppBootstrap({ children }: { children: React.ReactNode }) {
 
       const done = await AsyncStorage.getItem("onboarding_done");
       if (!done) router.replace("/onboarding");
+
+      // Restore auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) setIsAuthenticated(true);
+
+      // Restore guest jobs from AsyncStorage → fetch fresh data from Supabase
+      try {
+        const raw = await AsyncStorage.getItem(GUEST_JOB_IDS_KEY);
+        const guestIds: string[] = raw ? JSON.parse(raw) : [];
+        if (guestIds.length > 0) {
+          const { data, error } = await supabase
+            .from("jobs")
+            .select("id, type, category, description, address, status, created_at")
+            .in("id", guestIds);
+          if (!error && data && data.length > 0) {
+            const restored: Job[] = data.map((row: any) => ({
+              id:          row.id,
+              type:        row.type,
+              category:    row.category,
+              description: row.description,
+              address:     row.address,
+              status:      row.status,
+              date:        row.created_at,
+              photos:      [],
+              updates:     [],
+            }));
+            setJobs(restored);
+          }
+        }
+      } catch { /* non-fatal */ }
+
       setChecked(true);
 
       // Register push token (non-blocking)
       registerPushToken().then((t) => { if (t) setPushToken(t); });
     };
+
     boot();
+
+    // Listen for auth changes (sign in / sign out)
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
 
     // Open relevant screen when user taps a notification
     const sub = addNotificationResponseListener((jobId) => {
       if (jobId) router.push("/(tabs)/jobs");
       else        router.push("/(tabs)/messages");
     });
-    return () => sub.remove();
+
+    return () => {
+      authSub.unsubscribe();
+      sub.remove();
+    };
   }, []);
 
   if (!checked) return null;
