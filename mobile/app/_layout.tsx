@@ -8,23 +8,11 @@ import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { loadGuestJobIds } from "@/lib/guest-jobs";
 
 // Force class-based dark mode so the app always uses its navy theme
 // regardless of the user's system dark mode setting.
 StyleSheet.setFlag?.("darkMode", "class");
-
-const GUEST_JOB_IDS_KEY = "guest_job_ids";
-
-/** Persist a newly-submitted guest job ID so it survives page refresh */
-export async function persistGuestJobId(jobId: string) {
-  try {
-    const raw = await AsyncStorage.getItem(GUEST_JOB_IDS_KEY);
-    const ids: string[] = raw ? JSON.parse(raw) : [];
-    if (!ids.includes(jobId)) {
-      await AsyncStorage.setItem(GUEST_JOB_IDS_KEY, JSON.stringify([...ids, jobId]));
-    }
-  } catch { /* non-fatal */ }
-}
 
 function AppBootstrap({ children }: { children: React.ReactNode }) {
   const router                          = useRouter();
@@ -45,8 +33,7 @@ function AppBootstrap({ children }: { children: React.ReactNode }) {
 
       // Restore guest jobs from AsyncStorage → fetch fresh data from Supabase
       try {
-        const raw = await AsyncStorage.getItem(GUEST_JOB_IDS_KEY);
-        const guestIds: string[] = raw ? JSON.parse(raw) : [];
+        const guestIds = await loadGuestJobIds();
         if (guestIds.length > 0) {
           const { data, error } = await supabase
             .from("jobs")

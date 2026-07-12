@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 import { useApp } from "@/lib/context";
 import { supabase } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
-import { persistGuestJobId } from "@/app/_layout";
+import { persistGuestJobId } from "@/lib/guest-jobs";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";

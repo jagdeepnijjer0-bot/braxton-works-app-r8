@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
-import { persistGuestJobId } from "@/app/_layout";
+import { persistGuestJobId } from "@/lib/guest-jobs";
 import { registerPushToken } from "@/lib/notifications";
 
 const WELCOME_MSG =
