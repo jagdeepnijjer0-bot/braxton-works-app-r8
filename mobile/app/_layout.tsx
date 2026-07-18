@@ -1,4 +1,3 @@
-import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useApp, type Job } from "@/lib/context";
