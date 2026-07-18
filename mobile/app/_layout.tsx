@@ -1,17 +1,22 @@
+import * as SplashScreen from "expo-splash-screen";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useApp, type Job } from "@/lib/context";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState, Component } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { useEffect, Component } from "react";
+import { View, Text } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { loadGuestJobIds } from "@/lib/guest-jobs";
 import type { ReactNode } from "react";
 
+// Keep the native splash screen visible until we explicitly hide it.
+// Expo Router calls this automatically, but we call it here too as a belt-and-braces
+// guard so it is definitely set before any component renders.
+SplashScreen.preventAutoHideAsync();
+
 // ─── Error boundary ──────────────────────────────────────────────────────────
-// Catches render-time throws that would otherwise produce a black screen.
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
@@ -19,7 +24,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     if (this.state.error) {
       return (
         <View style={{ flex: 1, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", padding: 32 }}>
-          <Text style={{ color: colors.amber, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>Something went wrong</Text>
+          <Text style={{ color: colors.amber, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
+            Something went wrong
+          </Text>
           <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", lineHeight: 20 }}>
             {(this.state.error as Error).message}
           </Text>
@@ -30,25 +37,21 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-// ─── Boot loading screen ──────────────────────────────────────────────────────
-function BootScreen() {
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" }}>
-      <ActivityIndicator color={colors.amber} size="large" />
-    </View>
-  );
-}
-
 // ─── App bootstrap ────────────────────────────────────────────────────────────
+// IMPORTANT: always renders {children} — the <Stack> must be mounted from the
+// very first render so Expo Router can resolve routes and handle navigation.
+// We extend the native splash screen instead of showing a JS loading screen,
+// so the user sees the proper branded splash (not a frozen spinner) during boot.
 function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setPushToken, setJobs, setIsAuthenticated } = useApp();
-  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    // Hard timeout — if anything in boot hangs, render the app after 8 s rather
-    // than staying on a loading screen forever.
-    const timeout = setTimeout(() => setChecked(true), 8_000);
+    // Hard timeout: if anything in boot hangs, hide the splash after 8 s so
+    // the user can at least interact with the app.
+    const timeout = setTimeout(async () => {
+      await SplashScreen.hideAsync().catch(() => {});
+    }, 8_000);
 
     const boot = async () => {
       try {
@@ -57,16 +60,15 @@ function AppBootstrap({ children }: { children: ReactNode }) {
 
         const done = await AsyncStorage.getItem("onboarding_done");
         if (!done) {
-          // Navigate to onboarding immediately; rest of boot still runs in
-          // the background (non-blocking for route decision).
+          // Navigate before hiding splash so there's no flash of the tab bar.
           router.replace("/onboarding");
         }
 
-        // Restore auth session (may trigger a token refresh — non-fatal if it fails).
+        // Restore auth session (best-effort — non-fatal if it fails/hangs).
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) setIsAuthenticated(true);
-        } catch { /* session restore is best-effort */ }
+        } catch { /* session restore is non-fatal */ }
 
         // Restore guest jobs from AsyncStorage → re-fetch from Supabase.
         try {
@@ -93,14 +95,14 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           }
         } catch { /* guest job restore is non-fatal */ }
 
-        // Register push token after the rest of boot (fire-and-forget).
+        // Push token registration is fire-and-forget (non-blocking).
         registerPushToken().then((t) => { if (t) setPushToken(t); });
       } catch (e) {
-        // Log unexpected boot errors; the finally block still unblocks rendering.
         console.error("[boot] unexpected error:", e);
       } finally {
         clearTimeout(timeout);
-        setChecked(true);
+        // Dismiss the splash now that we know where to route the user.
+        await SplashScreen.hideAsync().catch(() => {});
       }
     };
 
@@ -122,7 +124,8 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  if (!checked) return <BootScreen />;
+  // Always render children — never return null or replace with a spinner here.
+  // The Stack must be mounted from the first render for Expo Router to work.
   return <>{children}</>;
 }
 
