@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
-import { supabase } from "@/lib/supabase";
+import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
@@ -16,64 +16,89 @@ import { registerPushToken } from "@/lib/notifications";
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
 
+const TIMEOUT_MS = 10_000;
+
 export default function SignInScreen() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { inquiry, addJob, setIsAuthenticated, pushToken, setPushToken } = useApp();
 
-  const [email,        setEmail]        = useState("");
-  const [password,     setPassword]     = useState("");
-  const [loading,      setLoading]      = useState(false);
-  const [resetSent,    setResetSent]    = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [email,     setEmail]     = useState("");
+  const [password,  setPassword]  = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
 
   const canSubmit = email.trim() && password.length >= 1;
 
   const handleSignIn = async () => {
     if (!canSubmit) return;
+    if (!isSupabaseConfigured) {
+      setError("App is not configured correctly. Please contact support.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (authError) {
-      if (authError.message.toLowerCase().includes("email not confirmed")) {
-        setError("Please confirm your email address before signing in. Check your inbox for a confirmation link.");
-      } else if (authError.message.toLowerCase().includes("invalid login")) {
-        setError("Incorrect email or password. Please try again.");
-      } else {
-        setError(authError.message);
+    // ── Sign in ───────────────────────────────────────────────────────────
+    let signInData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"];
+    try {
+      const result = await withTimeout(
+        supabase.auth.signInWithPassword({ email: email.trim(), password }),
+        TIMEOUT_MS
+      );
+      if (result.error) {
+        const msg = result.error.message.toLowerCase();
+        if (msg.includes("email not confirmed")) {
+          setError("Please confirm your email address before signing in. Check your inbox for a confirmation link.");
+        } else if (msg.includes("invalid login")) {
+          setError("Incorrect email or password. Please try again.");
+        } else {
+          setError(result.error.message);
+        }
+        setLoading(false);
+        return;
       }
+      signInData = result.data;
+    } catch (e: any) {
+      setError(e?.message ?? "Sign-in request timed out. Check your connection and try again.");
       setLoading(false);
       return;
     }
 
     setIsAuthenticated(true);
 
-    // Came from the enquiry auth-gate — submit the pending enquiry then confirm
+    // ── Enquiry path: submit the pending enquiry then confirm ─────────────
     if (from === "enquiry" && inquiry.category) {
       const jobId: string = crypto.randomUUID();
-      const userId = data.session?.user?.id ?? null;
+      const userId = signInData.session?.user?.id ?? null;
 
-      const { error: jobError } = await supabase.from("jobs").insert({
-        id:          jobId,
-        user_id:     userId,
-        type:        inquiry.type ?? "enquiry",
-        category:    inquiry.category,
-        description: inquiry.description,
-        address:     inquiry.address,
-        status:      "Enquiry Received",
-        timing:      inquiry.timing,
-        chosen_date: inquiry.chosenDate,
-        source:      "app",
-      });
-
-      if (jobError) {
-        console.error("Job insert error (sign-in path):", JSON.stringify(jobError));
-        setError("Signed in, but couldn't submit your enquiry. Please try again from the home screen.");
+      try {
+        const { error: jobError } = await withTimeout(
+          supabase.from("jobs").insert({
+            id:          jobId,
+            user_id:     userId,
+            type:        inquiry.type ?? "enquiry",
+            category:    inquiry.category,
+            description: inquiry.description,
+            address:     inquiry.address,
+            status:      "Enquiry Received",
+            timing:      inquiry.timing,
+            chosen_date: inquiry.chosenDate,
+            source:      "app",
+          }),
+          TIMEOUT_MS
+        );
+        if (jobError) {
+          console.error("Job insert error (sign-in path):", JSON.stringify(jobError));
+          setError("Signed in, but couldn't submit your enquiry. Please try again from the home screen.");
+          setLoading(false);
+          return;
+        }
+      } catch (e: any) {
+        console.error("Job insert timed out (sign-in path):", e);
+        setError("Signed in, but the enquiry timed out. Check your connection and try again.");
         setLoading(false);
         return;
       }
@@ -91,24 +116,37 @@ export default function SignInScreen() {
         updates:     [],
       });
 
-      // Welcome message + push token (non-fatal)
-      const token = pushToken ?? await registerPushToken(jobId).then((t) => {
-        if (t) setPushToken(t);
-        return t;
-      });
-      await Promise.allSettled([
-        supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
-        token
-          ? supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" })
-          : Promise.resolve(),
-      ]);
+      // ── Fire-and-forget: welcome message + push token ──────────────────
+      // registerPushToken shows a system permission dialog and contacts Expo
+      // servers — must NOT be awaited on the navigation critical path.
+      const sendAfterwork = async () => {
+        try {
+          const token = pushToken ?? await registerPushToken(jobId).then((t) => {
+            if (t) setPushToken(t);
+            return t;
+          });
+          await Promise.allSettled([
+            withTimeout(
+              supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
+              TIMEOUT_MS
+            ),
+            token
+              ? withTimeout(
+                  supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+                  TIMEOUT_MS
+                )
+              : Promise.resolve(),
+          ]);
+        } catch { /* non-fatal */ }
+      };
+      sendAfterwork(); // intentionally NOT awaited
 
       setLoading(false);
       router.replace("/inquiry/confirmation");
       return;
     }
 
-    // Came from Profile tab — return there
+    // ── Profile path: sign-in from Profile tab ────────────────────────────
     setLoading(false);
     router.replace("/(tabs)/profile");
   };
@@ -120,13 +158,20 @@ export default function SignInScreen() {
     }
     setLoading(true);
     setError(null);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim());
-    setLoading(false);
-    if (resetError) {
-      setError(resetError.message);
-    } else {
-      setResetSent(true);
+    try {
+      const { error: resetError } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email.trim()),
+        TIMEOUT_MS
+      );
+      if (resetError) {
+        setError(resetError.message);
+      } else {
+        setResetSent(true);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Request timed out. Check your connection and try again.");
     }
+    setLoading(false);
   };
 
   return (
@@ -143,8 +188,8 @@ export default function SignInScreen() {
         <Text style={styles.sub}>Sign in to track your jobs and messages</Text>
 
         {[
-          { label: "EMAIL",    value: email,    set: setEmail,    placeholder: "you@example.com",  kb: "email-address", secure: false },
-          { label: "PASSWORD", value: password, set: setPassword, placeholder: "Your password",     kb: "default",       secure: true  },
+          { label: "EMAIL",    value: email,    set: setEmail,    placeholder: "you@example.com", kb: "email-address", secure: false },
+          { label: "PASSWORD", value: password, set: setPassword, placeholder: "Your password",    kb: "default",       secure: true  },
         ].map(({ label, value, set, placeholder, kb, secure }) => (
           <View key={label} style={{ marginBottom: 18 }}>
             <Text style={styles.fieldLabel}>{label}</Text>

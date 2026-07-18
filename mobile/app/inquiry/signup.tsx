@@ -6,9 +6,14 @@ import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
-import { supabase } from "@/lib/supabase";
+import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
+
+const WELCOME_MSG =
+  "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
+
+const TIMEOUT_MS = 10_000;
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -24,54 +29,67 @@ export default function SignUpScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (!isSupabaseConfigured) {
+      setError("App is not configured correctly. Please contact support.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    });
-
-    if (authError) {
-      setError(authError.message);
+    // ── Sign up ───────────────────────────────────────────────────────────
+    let authData: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"];
+    try {
+      const result = await withTimeout(
+        supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name } } }),
+        TIMEOUT_MS
+      );
+      if (result.error) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+      authData = result.data;
+    } catch (e: any) {
+      setError(e?.message ?? "Sign-up request timed out. Check your connection and try again.");
       setLoading(false);
       return;
     }
 
     setIsAuthenticated(true);
 
-    // Generate UUID client-side — avoids needing .select() which requires
-    // RLS read permission that unconfirmed signups don't have yet
+    // ── Job insert ────────────────────────────────────────────────────────
     const jobId: string = crypto.randomUUID();
+    const userId = authData.session?.user?.id ?? null;
 
-    // Only attach user_id when there's a real confirmed session;
-    // signUp() with email confirmation pending returns a session only if
-    // "Confirm email" is disabled in Supabase Auth settings.
-    const session = authData.session;
-    const userId  = session?.user?.id ?? null;
-
-    const { error: jobError } = await supabase
-      .from("jobs")
-      .insert({
-        id:          jobId,
-        user_id:     userId,
-        type:        inquiry.type ?? "enquiry",
-        category:    inquiry.category,
-        description: inquiry.description,
-        address:     inquiry.address,
-        status:      "Enquiry Received",
-        timing:      inquiry.timing,
-        chosen_date: inquiry.chosenDate,
-        guest_name:  name || null,
-        guest_phone: inquiry.phone || null,
-        guest_contact_preference: inquiry.contactPreference || null,
-        source:      "app",
-      });
-
-    if (jobError) {
-      console.error("Job insert error (signup):", JSON.stringify(jobError));
-      setError("Account created, but we couldn't submit your enquiry. Please try again from the home screen.");
+    try {
+      const { error: jobError } = await withTimeout(
+        supabase.from("jobs").insert({
+          id:          jobId,
+          user_id:     userId,
+          type:        inquiry.type ?? "enquiry",
+          category:    inquiry.category,
+          description: inquiry.description,
+          address:     inquiry.address,
+          status:      "Enquiry Received",
+          timing:      inquiry.timing,
+          chosen_date: inquiry.chosenDate,
+          guest_name:  name            || null,
+          guest_phone: inquiry.phone   || null,
+          guest_contact_preference: inquiry.contactPreference || null,
+          source:      "app",
+        }),
+        TIMEOUT_MS
+      );
+      if (jobError) {
+        console.error("Job insert error (signup):", JSON.stringify(jobError));
+        setError("Account created, but we couldn't submit your enquiry. Please try again from the home screen.");
+        setLoading(false);
+        return;
+      }
+    } catch (e: any) {
+      console.error("Job insert timed out (signup):", e);
+      setError("Account created, but the enquiry timed out. Check your connection and try again.");
       setLoading(false);
       return;
     }
@@ -88,12 +106,11 @@ export default function SignUpScreen() {
       updates:     [],
     });
 
-    // Welcome message (non-fatal)
-    await supabase.from("messages").insert({
-      job_id: jobId,
-      body:   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.",
-      sender: "contractor",
-    }).then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); });
+    // ── Fire-and-forget: welcome message — must NOT block navigation ───────
+    supabase.from("messages")
+      .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
+      .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
+      .catch(() => {});
 
     setLoading(false);
     router.replace("/inquiry/confirmation");
@@ -111,9 +128,9 @@ export default function SignUpScreen() {
         <Text style={styles.sub}>Your enquiry will be submitted right after</Text>
 
         {[
-          { label: "FULL NAME",  value: name,     set: setName,     placeholder: "Your full name",    kb: "default"       },
-          { label: "EMAIL",      value: email,    set: setEmail,    placeholder: "you@example.com",   kb: "email-address" },
-          { label: "PASSWORD",   value: password, set: setPassword, placeholder: "Min. 6 characters", kb: "default", secure: true },
+          { label: "FULL NAME",  value: name,     set: setName,     placeholder: "Your full name",    kb: "default",       secure: false },
+          { label: "EMAIL",      value: email,    set: setEmail,    placeholder: "you@example.com",   kb: "email-address", secure: false },
+          { label: "PASSWORD",   value: password, set: setPassword, placeholder: "Min. 6 characters", kb: "default",       secure: true  },
         ].map(({ label, value, set, placeholder, kb, secure }) => (
           <View key={label} style={{ marginBottom: 20 }}>
             <Text style={styles.fieldLabel}>{label}</Text>
@@ -125,6 +142,7 @@ export default function SignUpScreen() {
               keyboardType={kb as any}
               secureTextEntry={secure}
               autoCapitalize={kb === "email-address" ? "none" : "words"}
+              autoCorrect={false}
               style={styles.input}
             />
           </View>
