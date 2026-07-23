@@ -1,36 +1,92 @@
 import {
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert,
+  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, Switch,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { User, LogOut, ChevronRight } from "lucide-react-native";
+import { User, LogOut, ChevronRight, Bell } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/context";
-import { supabase } from "@/lib/supabase";
+import { supabase, withTimeout } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { STATUS_PILL_COLORS, statusTone } from "@/lib/status";
 
 interface UserProfile {
-  name:  string;
-  email: string;
+  name:             string;
+  email:            string;
+  marketingConsent: boolean;
 }
+
+const TIMEOUT_MS = 10_000;
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { isAuthenticated, setIsAuthenticated, jobs } = useApp();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile,        setProfile]        = useState<UserProfile | null>(null);
+  const [consentLoading, setConsentLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setProfile({
-          name:  data.user.user_metadata?.full_name ?? data.user.email?.split("@")[0] ?? "My Account",
-          email: data.user.email ?? "",
-        });
-      }
-    });
+    const load = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+
+      const name  = authData.user.user_metadata?.full_name ?? authData.user.email?.split("@")[0] ?? "My Account";
+      const email = authData.user.email ?? "";
+
+      // Load marketing consent from user_profiles (non-fatal if missing)
+      let marketingConsent = false;
+      try {
+        const { data } = await withTimeout(
+          supabase
+            .from("user_profiles")
+            .select("marketing_consent")
+            .eq("user_id", authData.user.id)
+            .maybeSingle(),
+          TIMEOUT_MS
+        );
+        if (data) marketingConsent = !!data.marketing_consent;
+      } catch { /* non-fatal — show toggle as off */ }
+
+      setProfile({ name, email, marketingConsent });
+    };
+    load();
   }, [isAuthenticated]);
+
+  const handleMarketingToggle = async (value: boolean) => {
+    if (!profile) return;
+    // Optimistic update
+    setProfile((p) => p ? { ...p, marketingConsent: value } : p);
+    setConsentLoading(true);
+
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id;
+    if (!userId) { setConsentLoading(false); return; }
+
+    try {
+      const { error } = await withTimeout(
+        supabase.from("user_profiles").upsert(
+          {
+            user_id:              userId,
+            marketing_consent:    value,
+            // Set consent_at to now when newly enabling; clear it when disabling.
+            marketing_consent_at: value ? new Date().toISOString() : null,
+          },
+          { onConflict: "user_id" }
+        ),
+        TIMEOUT_MS
+      );
+      if (error) {
+        console.warn("Marketing consent update error:", error.message);
+        // Revert optimistic update on failure
+        setProfile((p) => p ? { ...p, marketingConsent: !value } : p);
+      }
+    } catch (e) {
+      console.warn("Marketing consent update timed out:", e);
+      setProfile((p) => p ? { ...p, marketingConsent: !value } : p);
+    } finally {
+      setConsentLoading(false);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -140,6 +196,31 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* Preferences */}
+        <Text style={styles.sectionLabel}>PREFERENCES</Text>
+        <View style={styles.prefsCard}>
+          <View style={styles.prefRow}>
+            <View style={styles.prefIconWrap}>
+              <Bell color={colors.amber} size={16} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.prefTitle}>Marketing emails</Text>
+              <Text style={styles.prefSub}>Tips, offers and updates from Build.me</Text>
+            </View>
+            <Switch
+              value={profile?.marketingConsent ?? false}
+              onValueChange={handleMarketingToggle}
+              disabled={consentLoading}
+              trackColor={{ false: "rgba(255,255,255,0.12)", true: colors.amber }}
+              thumbColor={colors.white}
+              ios_backgroundColor="rgba(255,255,255,0.12)"
+            />
+          </View>
+        </View>
+        <Text style={styles.prefsNote}>
+          Turning this off only affects marketing emails. You'll still receive important updates about your jobs and messages.
+        </Text>
+
         {/* Sign out */}
         <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut} activeOpacity={0.8}>
           <View style={styles.signOutIcon}>
@@ -221,6 +302,39 @@ const styles = StyleSheet.create({
   pillText:       { fontSize: 10, fontWeight: "600" },
   viewAllRow:     { paddingHorizontal: 18, paddingVertical: 14, alignItems: "center", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
   viewAllText:    { color: colors.amber, fontWeight: "700", fontSize: 13 },
+
+  // Preferences section
+  prefsCard: {
+    marginHorizontal: 22,
+    backgroundColor:  "rgba(255,255,255,0.05)",
+    borderRadius:     20,
+    borderWidth:      1,
+    borderColor:      "rgba(255,255,255,0.08)",
+    overflow:         "hidden",
+    marginBottom:     10,
+  },
+  prefRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 18,
+    paddingVertical:   16,
+    gap:               14,
+  },
+  prefIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(245,158,11,0.1)",
+    alignItems: "center", justifyContent: "center",
+  },
+  prefTitle: { color: colors.white,  fontWeight: "600", fontSize: 14, lineHeight: 20 },
+  prefSub:   { color: colors.muted,  fontWeight: "400", fontSize: 12, marginTop: 2 },
+  prefsNote: {
+    marginHorizontal: 22,
+    marginBottom:     22,
+    color:            "rgba(255,255,255,0.3)",
+    fontSize:         12,
+    fontWeight:       "400",
+    lineHeight:       17,
+  },
 
   signOutRow: {
     flexDirection:    "row",

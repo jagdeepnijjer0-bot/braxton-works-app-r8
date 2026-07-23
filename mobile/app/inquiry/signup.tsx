@@ -3,7 +3,7 @@ import {
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Check } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
@@ -19,11 +19,12 @@ export default function SignUpScreen() {
   const router = useRouter();
   const { inquiry, addJob, setIsAuthenticated } = useApp();
 
-  const [name,     setName]     = useState(inquiry.name);
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [name,            setName]            = useState(inquiry.name);
+  const [email,           setEmail]           = useState("");
+  const [password,        setPassword]        = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
 
   const canSubmit = name.trim() && email.trim() && password.length >= 6;
 
@@ -106,11 +107,26 @@ export default function SignUpScreen() {
       updates:     [],
     });
 
-    // ── Fire-and-forget: welcome message — must NOT block navigation ───────
+    // ── Fire-and-forget: welcome message + marketing consent ───────────────
+    // Neither must block navigation — they run in the background after routing.
     supabase.from("messages")
       .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
       .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
       .catch(() => {});
+
+    if (userId) {
+      // Record marketing consent state with an auditable timestamp.
+      // Only set consent_at when the user actively ticked the box.
+      supabase.from("user_profiles").upsert(
+        {
+          user_id:               userId,
+          marketing_consent:     marketingConsent,
+          marketing_consent_at:  marketingConsent ? new Date().toISOString() : null,
+        },
+        { onConflict: "user_id" }
+      ).then(({ error: e }) => { if (e) console.warn("Marketing consent write error:", e.message); })
+       .catch(() => {});
+    }
 
     setLoading(false);
     router.replace("/inquiry/confirmation");
@@ -147,6 +163,23 @@ export default function SignUpScreen() {
             />
           </View>
         ))}
+
+        {/* Marketing consent — separate, optional, never pre-ticked (PECR / UK GDPR) */}
+        <TouchableOpacity
+          style={styles.consentRow}
+          onPress={() => setMarketingConsent((v) => !v)}
+          activeOpacity={0.75}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: marketingConsent }}
+          accessibilityLabel="Email me occasional tips, offers and updates from Build.me. You can unsubscribe any time."
+        >
+          <View style={[styles.checkbox, marketingConsent && styles.checkboxTicked]}>
+            {marketingConsent && <Check color={colors.navy} size={13} strokeWidth={3} />}
+          </View>
+          <Text style={styles.consentText}>
+            Email me occasional tips, offers and updates from Build.me. You can unsubscribe any time.
+          </Text>
+        </TouchableOpacity>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -185,5 +218,39 @@ const styles = StyleSheet.create({
     shadowOffset:      { width: 0, height: 4 },
     elevation:         3,
   },
+
+  // Marketing consent checkbox
+  consentRow: {
+    flexDirection:  "row",
+    alignItems:     "flex-start",
+    gap:            12,
+    marginBottom:   24,
+    marginTop:      4,
+    paddingVertical: 4, // extra tap target height
+  },
+  checkbox: {
+    width:           22,
+    height:          22,
+    borderRadius:    6,
+    borderWidth:     2,
+    borderColor:     "rgba(255,255,255,0.25)",
+    backgroundColor: "transparent",
+    alignItems:      "center",
+    justifyContent:  "center",
+    marginTop:       1,
+    flexShrink:      0,
+  },
+  checkboxTicked: {
+    backgroundColor: colors.amber,
+    borderColor:     colors.amber,
+  },
+  consentText: {
+    flex:       1,
+    color:      "rgba(255,255,255,0.45)",
+    fontSize:   13,
+    fontWeight: "400",
+    lineHeight: 19,
+  },
+
   error: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
 });
