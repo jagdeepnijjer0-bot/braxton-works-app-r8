@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.buildme.app",
+      "bundleIdentifier": "com.tradenest.app",
       "infoPlist": {
         "NSCameraUsageDescription": "TradeNest needs camera access to take photos of your job.",
         "NSPhotoLibraryUsageDescription": "TradeNest needs photo library access to attach photos to your enquiry.",
@@ -28,7 +28,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0F172A"
       },
-      "package": "com.buildme.app",
+      "package": "com.tradenest.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
