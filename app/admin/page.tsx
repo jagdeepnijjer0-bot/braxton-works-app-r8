@@ -198,10 +198,10 @@ export default function AdminDashboard() {
       <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-[#F59E0B] flex items-center justify-center">
-            <span className="text-[#0F172A] font-bold text-lg">B</span>
+            <span className="text-[#0F172A] font-bold text-lg">T</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Build.me</h1>
+            <h1 className="text-xl font-bold text-white">TradeNest</h1>
             <p className="text-sm text-white/60">Admin Dashboard</p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Build.me",
-    "slug": "buildme",
+    "name": "TradeNest",
+    "slug": "tradenest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,9 +16,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.buildme.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Build.me needs camera access to take photos of your job.",
-        "NSPhotoLibraryUsageDescription": "Build.me needs photo library access to attach photos to your enquiry.",
-        "NSPhotoLibraryAddUsageDescription": "Build.me needs permission to save photos to your library."
+        "NSCameraUsageDescription": "TradeNest needs camera access to take photos of your job.",
+        "NSPhotoLibraryUsageDescription": "TradeNest needs photo library access to attach photos to your enquiry.",
+        "NSPhotoLibraryAddUsageDescription": "TradeNest needs permission to save photos to your library."
       }
     },
     "android": {
@@ -43,8 +43,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Build.me needs photo library access to attach photos to your enquiry.",
-          "cameraPermission": "Build.me needs camera access to take photos of your job."
+          "photosPermission": "TradeNest needs photo library access to attach photos to your enquiry.",
+          "cameraPermission": "TradeNest needs camera access to take photos of your job."
         }
       ],
       [
@@ -56,6 +56,6 @@
         }
       ]
     ],
-    "scheme": "buildme"
+    "scheme": "tradenest"
   }
 }

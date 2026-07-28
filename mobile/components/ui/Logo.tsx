@@ -22,7 +22,7 @@ export function Logo({ size = 48 }: Props) {
         },
       ]}
     >
-      <Text style={[styles.letter, { fontSize }]}>B</Text>
+      <Text style={[styles.letter, { fontSize }]}>T</Text>
       <View
         style={[
           styles.accent,

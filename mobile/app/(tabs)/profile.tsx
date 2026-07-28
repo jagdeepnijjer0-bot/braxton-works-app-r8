@@ -205,7 +205,7 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.prefTitle}>Marketing emails</Text>
-              <Text style={styles.prefSub}>Tips, offers and updates from Build.me</Text>
+              <Text style={styles.prefSub}>Tips, offers and updates from TradeNest</Text>
             </View>
             <Switch
               value={profile?.marketingConsent ?? false}

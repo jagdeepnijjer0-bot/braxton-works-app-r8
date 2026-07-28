@@ -171,13 +171,13 @@ export default function SignUpScreen() {
           activeOpacity={0.75}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: marketingConsent }}
-          accessibilityLabel="Email me occasional tips, offers and updates from Build.me. You can unsubscribe any time."
+          accessibilityLabel="Email me occasional tips, offers and updates from TradeNest. You can unsubscribe any time."
         >
           <View style={[styles.checkbox, marketingConsent && styles.checkboxTicked]}>
             {marketingConsent && <Check color={colors.navy} size={13} strokeWidth={3} />}
           </View>
           <Text style={styles.consentText}>
-            Email me occasional tips, offers and updates from Build.me. You can unsubscribe any time.
+            Email me occasional tips, offers and updates from TradeNest. You can unsubscribe any time.
           </Text>
         </TouchableOpacity>
 

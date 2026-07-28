@@ -37,7 +37,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Logo size={52} />
           <View style={styles.headerText}>
-            <Text style={styles.appName}>Build.me</Text>
+            <Text style={styles.appName}>TradeNest</Text>
             <Text style={styles.appSub}>Property Services</Text>
           </View>
         </View>
