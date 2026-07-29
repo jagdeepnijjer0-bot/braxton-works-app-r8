@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Image, Alert,
+  StyleSheet, SafeAreaView, Image, Alert, Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Camera, X, Image as ImageIcon } from "lucide-react-native";
@@ -116,7 +116,7 @@ export default function DescriptionScreen() {
 
         <Button
           label="Continue"
-          onPress={() => router.push("/inquiry/urgency")}
+          onPress={() => { Keyboard.dismiss(); router.push("/inquiry/urgency"); }}
           disabled={!canContinue}
           style={{ marginTop: 12 }}
         />

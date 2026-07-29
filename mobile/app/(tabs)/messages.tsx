@@ -109,7 +109,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
           const isUser = item.sender === "user";
           return (
             <View style={[thread.row, isUser ? thread.rowUser : thread.rowOther]}>
-              {!isUser && <View style={thread.avatar}><Text style={thread.avatarText}>B</Text></View>}
+              {!isUser && <View style={thread.avatar}><Text style={thread.avatarText}>T</Text></View>}
               <View style={[thread.bubble, isUser ? thread.bubbleUser : thread.bubbleOther]}>
                 <Text style={[thread.bubbleText, isUser ? thread.bubbleTextUser : thread.bubbleTextOther]}>
                   {item.body}
@@ -200,7 +200,7 @@ export default function MessagesScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.threadAvatar}>
-                <Text style={styles.threadAvatarText}>B</Text>
+                <Text style={styles.threadAvatarText}>T</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.threadCategory}>{item.category}</Text>

@@ -38,12 +38,12 @@ export default function HomeScreen() {
           <Logo size={52} />
           <View style={styles.headerText}>
             <Text style={styles.appName}>TradeNest</Text>
-            <Text style={styles.appSub}>Property Services</Text>
+            <Text style={styles.appSub}>Repairs, Maintenance &amp; Builds</Text>
           </View>
         </View>
 
         {/* Hero tagline */}
-        <Text style={styles.tagline}>Anything that{"\n"}needs doing,{"\n"}we sort it.</Text>
+        <Text style={styles.tagline} numberOfLines={1} adjustsFontSizeToFit>Anything that needs doing, we sort it.</Text>
 
         {/* Social proof */}
         <Text style={styles.socialProof}>
@@ -111,10 +111,9 @@ const styles = StyleSheet.create({
   /* Hero */
   tagline:     {
     color: colors.white,
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: "800",
-    lineHeight: 46,
-    letterSpacing: -1.2,
+    letterSpacing: -0.8,
     marginBottom: 14,
   },
   socialProof: {

@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Check } from "lucide-react-native";
@@ -8,7 +8,11 @@ import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const REMEMBER_KEY  = "remembered_contact";
+const REMEMBER_FLAG = "remember_me";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
@@ -19,17 +23,22 @@ export default function SignUpScreen() {
   const router = useRouter();
   const { inquiry, addJob, setIsAuthenticated } = useApp();
 
-  const [name,            setName]            = useState(inquiry.name);
-  const [email,           setEmail]           = useState("");
-  const [password,        setPassword]        = useState("");
+  const [name,             setName]             = useState(inquiry.name);
+  const [email,            setEmail]            = useState("");
+  const [password,         setPassword]         = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
-  const [loading,         setLoading]         = useState(false);
-  const [error,           setError]           = useState<string | null>(null);
+  const [rememberMe,       setRememberMe]       = useState(false);
+  const [loading,          setLoading]          = useState(false);
+  const [error,            setError]            = useState<string | null>(null);
+
+  const emailRef    = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const canSubmit = name.trim() && email.trim() && password.length >= 6;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    Keyboard.dismiss();
     if (!isSupabaseConfigured) {
       setError("App is not configured correctly. Please contact support.");
       return;
@@ -128,6 +137,16 @@ export default function SignUpScreen() {
        .catch(() => {});
     }
 
+    // Save remembered contact details if opted in
+    if (rememberMe) {
+      AsyncStorage.multiSet([
+        [REMEMBER_KEY,  JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })],
+        [REMEMBER_FLAG, "true"],
+      ]).catch(() => {});
+    } else {
+      AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+    }
+
     setLoading(false);
     router.replace("/inquiry/confirmation");
   };
@@ -143,26 +162,62 @@ export default function SignUpScreen() {
         <Text style={styles.title}>Create your{"\n"}account</Text>
         <Text style={styles.sub}>Your enquiry will be submitted right after</Text>
 
-        {[
-          { label: "FULL NAME",  value: name,     set: setName,     placeholder: "Your full name",    kb: "default",       secure: false },
-          { label: "EMAIL",      value: email,    set: setEmail,    placeholder: "you@example.com",   kb: "email-address", secure: false },
-          { label: "PASSWORD",   value: password, set: setPassword, placeholder: "Min. 6 characters", kb: "default",       secure: true  },
-        ].map(({ label, value, set, placeholder, kb, secure }) => (
-          <View key={label} style={{ marginBottom: 20 }}>
-            <Text style={styles.fieldLabel}>{label}</Text>
-            <TextInput
-              value={value}
-              onChangeText={set}
-              placeholder={placeholder}
-              placeholderTextColor="rgba(15,23,42,0.35)"
-              keyboardType={kb as any}
-              secureTextEntry={secure}
-              autoCapitalize={kb === "email-address" ? "none" : "words"}
-              autoCorrect={false}
-              style={styles.input}
-            />
-          </View>
-        ))}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.fieldLabel}>FULL NAME</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Your full name"
+            placeholderTextColor="rgba(15,23,42,0.35)"
+            keyboardType="default"
+            textContentType="name"
+            autoComplete="name"
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => emailRef.current?.focus()}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.fieldLabel}>EMAIL</Text>
+          <TextInput
+            ref={emailRef}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor="rgba(15,23,42,0.35)"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={{ marginBottom: 20 }}>
+          <Text style={styles.fieldLabel}>PASSWORD</Text>
+          <TextInput
+            ref={passwordRef}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Min. 6 characters"
+            placeholderTextColor="rgba(15,23,42,0.35)"
+            keyboardType="default"
+            textContentType="newPassword"
+            autoComplete="new-password"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            style={styles.input}
+          />
+        </View>
 
         {/* Marketing consent — separate, optional, never pre-ticked (PECR / UK GDPR) */}
         <TouchableOpacity
@@ -178,6 +233,23 @@ export default function SignUpScreen() {
           </View>
           <Text style={styles.consentText}>
             Email me occasional tips, offers and updates from TradeNest. You can unsubscribe any time.
+          </Text>
+        </TouchableOpacity>
+
+        {/* Remember me — saves contact details to pre-fill future enquiries */}
+        <TouchableOpacity
+          style={styles.rememberRow}
+          onPress={() => setRememberMe((v) => !v)}
+          activeOpacity={0.75}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: rememberMe }}
+          accessibilityLabel="Remember my contact details for future enquiries"
+        >
+          <View style={[styles.checkbox, rememberMe && styles.checkboxTicked]}>
+            {rememberMe && <Check color={colors.navy} size={13} strokeWidth={3} />}
+          </View>
+          <Text style={styles.consentText}>
+            Remember my details for future enquiries
           </Text>
         </TouchableOpacity>
 
@@ -252,5 +324,13 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  rememberRow: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    gap:            12,
+    marginBottom:   20,
+    marginTop:      4,
+    paddingVertical: 4,
+  },
   error: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
 });

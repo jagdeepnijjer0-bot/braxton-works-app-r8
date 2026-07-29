@@ -1,17 +1,21 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Keyboard,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Check } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persistGuestJobId } from "@/lib/guest-jobs";
 import { registerPushToken } from "@/lib/notifications";
+
+const REMEMBER_KEY  = "remembered_contact";
+const REMEMBER_FLAG = "remember_me";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
@@ -23,16 +27,20 @@ export default function SignInScreen() {
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { inquiry, addJob, setIsAuthenticated, pushToken, setPushToken } = useApp();
 
-  const [email,     setEmail]     = useState("");
-  const [password,  setPassword]  = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [resetSent, setResetSent] = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const [email,      setEmail]      = useState("");
+  const [password,   setPassword]   = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [resetSent,  setResetSent]  = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+
+  const passwordRef = useRef<TextInput>(null);
 
   const canSubmit = email.trim() && password.length >= 1;
 
   const handleSignIn = async () => {
     if (!canSubmit) return;
+    Keyboard.dismiss();
     if (!isSupabaseConfigured) {
       setError("App is not configured correctly. Please contact support.");
       return;
@@ -141,6 +149,16 @@ export default function SignInScreen() {
       };
       sendAfterwork(); // intentionally NOT awaited
 
+      // Save remembered contact details if opted in
+      if (rememberMe) {
+        AsyncStorage.multiSet([
+          [REMEMBER_KEY,  JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })],
+          [REMEMBER_FLAG, "true"],
+        ]).catch(() => {});
+      } else {
+        AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+      }
+
       setLoading(false);
       router.replace("/inquiry/confirmation");
       return;
@@ -187,28 +205,61 @@ export default function SignInScreen() {
         <Text style={styles.title}>Welcome{"\n"}back</Text>
         <Text style={styles.sub}>Sign in to track your jobs and messages</Text>
 
-        {[
-          { label: "EMAIL",    value: email,    set: setEmail,    placeholder: "you@example.com", kb: "email-address", secure: false },
-          { label: "PASSWORD", value: password, set: setPassword, placeholder: "Your password",    kb: "default",       secure: true  },
-        ].map(({ label, value, set, placeholder, kb, secure }) => (
-          <View key={label} style={{ marginBottom: 18 }}>
-            <Text style={styles.fieldLabel}>{label}</Text>
-            <TextInput
-              value={value}
-              onChangeText={set}
-              placeholder={placeholder}
-              placeholderTextColor="rgba(15,23,42,0.35)"
-              keyboardType={kb as any}
-              secureTextEntry={secure}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.input}
-            />
-          </View>
-        ))}
+        <View style={{ marginBottom: 18 }}>
+          <Text style={styles.fieldLabel}>EMAIL</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor="rgba(15,23,42,0.35)"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={{ marginBottom: 18 }}>
+          <Text style={styles.fieldLabel}>PASSWORD</Text>
+          <TextInput
+            ref={passwordRef}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Your password"
+            placeholderTextColor="rgba(15,23,42,0.35)"
+            keyboardType="default"
+            textContentType="password"
+            autoComplete="current-password"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            style={styles.input}
+          />
+        </View>
 
         <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.75} style={styles.forgotWrap}>
           <Text style={styles.forgotText}>Forgot password?</Text>
+        </TouchableOpacity>
+
+        {/* Remember me — saves contact details to pre-fill future enquiries */}
+        <TouchableOpacity
+          style={styles.rememberRow}
+          onPress={() => setRememberMe((v) => !v)}
+          activeOpacity={0.75}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: rememberMe }}
+          accessibilityLabel="Remember my contact details for future enquiries"
+        >
+          <View style={[styles.checkbox, rememberMe && styles.checkboxTicked]}>
+            {rememberMe && <Check color={colors.navy} size={13} strokeWidth={3} />}
+          </View>
+          <Text style={styles.rememberText}>Remember my details for future enquiries</Text>
         </TouchableOpacity>
 
         {resetSent && (
@@ -267,6 +318,14 @@ const styles = StyleSheet.create({
   },
   forgotWrap:    { alignSelf: "flex-end", marginBottom: 8 },
   forgotText:    { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "600" },
+  rememberRow:   { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20, paddingVertical: 4 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.25)", backgroundColor: "transparent",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  checkboxTicked: { backgroundColor: colors.amber, borderColor: colors.amber },
+  rememberText:  { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "400", lineHeight: 19, flex: 1 },
   successBanner: { backgroundColor: "rgba(16,185,129,0.12)", borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(16,185,129,0.25)" },
   successText:   { color: "#10B981", fontSize: 13, fontWeight: "600", lineHeight: 19 },
   error:         { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12, lineHeight: 19 },
