@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { useState, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { persistGuestJobId } from "@/lib/guest-jobs";
+import { persistGuestJob } from "@/lib/guest-jobs";
 import { registerPushToken } from "@/lib/notifications";
 
 const REMEMBER_KEY  = "remembered_contact";
@@ -111,8 +111,7 @@ export default function SignInScreen() {
         return;
       }
 
-      await persistGuestJobId(jobId);
-      addJob({
+      const newJob = {
         id:          jobId,
         type:        inquiry.type ?? "enquiry",
         category:    inquiry.category,
@@ -122,7 +121,9 @@ export default function SignInScreen() {
         date:        new Date().toISOString(),
         photos:      inquiry.photos,
         updates:     [],
-      });
+      };
+      persistGuestJob(newJob); // fire-and-forget
+      addJob(newJob);
 
       // ── Fire-and-forget: welcome message + push token ──────────────────
       // registerPushToken shows a system permission dialog and contacts Expo

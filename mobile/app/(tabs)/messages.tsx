@@ -23,21 +23,24 @@ function formatTime(iso: string) {
 }
 
 function ChatThread({ jobId, category }: { jobId: string; category: string }) {
-  const [messages, setMessages]   = useState<Message[]>([]);
-  const [draft,    setDraft]      = useState("");
-  const [loading,  setLoading]    = useState(true);
+  const [messages,  setMessages]  = useState<Message[]>([]);
+  const [draft,     setDraft]     = useState("");
+  const [loading,   setLoading]   = useState(true);
+  const [sendError, setSendError] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const load = async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("id, body, sender, created_at")
-        .eq("job_id", jobId)
-        .order("created_at", { ascending: true });
-      if (data) setMessages(data as Message[]);
+      try {
+        const { data } = await supabase
+          .from("messages")
+          .select("id, body, sender, created_at")
+          .eq("job_id", jobId)
+          .order("created_at", { ascending: true });
+        if (data) setMessages(data as Message[]);
+      } catch { /* non-fatal — show empty thread */ }
       setLoading(false);
     };
 
@@ -61,6 +64,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
     const body = draft.trim();
     if (!body) return;
     setDraft("");
+    setSendError(null);
 
     const optimistic: Message = {
       id:         `opt-${Date.now()}`,
@@ -70,7 +74,12 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
     };
     setMessages((prev) => [...prev, optimistic]);
 
-    await supabase.from("messages").insert({ job_id: jobId, body, sender: "user" });
+    try {
+      const { error } = await supabase.from("messages").insert({ job_id: jobId, body, sender: "user" });
+      if (error) setSendError("Message couldn't be sent — check your connection.");
+    } catch {
+      setSendError("Message couldn't be sent — check your connection.");
+    }
   };
 
   if (loading) {
@@ -122,6 +131,10 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
           );
         }}
       />
+
+      {sendError && (
+        <Text style={thread.sendError}>{sendError}</Text>
+      )}
 
       <View style={thread.input}>
         <TextInput
@@ -300,4 +313,5 @@ const thread = StyleSheet.create({
   },
   sendBtn:         { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.amber, alignItems: "center", justifyContent: "center" },
   sendBtnDisabled: { backgroundColor: "rgba(255,255,255,0.08)" },
+  sendError:       { color: "#EF4444", fontSize: 12, fontWeight: "600", paddingHorizontal: 16, paddingBottom: 6 },
 });

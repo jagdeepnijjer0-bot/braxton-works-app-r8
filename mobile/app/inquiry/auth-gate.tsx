@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
-import { persistGuestJobId } from "@/lib/guest-jobs";
+import { persistGuestJob } from "@/lib/guest-jobs";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
@@ -55,9 +55,8 @@ export default function AuthGateScreen() {
       return null;
     }
 
-    // Persist ID and update local state — both are synchronous / local, no network.
-    await persistGuestJobId(jobId);
-    addJob({
+    // Build the local job object and persist it for cross-session restore.
+    const newJob = {
       id:          jobId,
       type:        inquiry.type ?? "enquiry",
       category:    inquiry.category,
@@ -67,7 +66,9 @@ export default function AuthGateScreen() {
       date:        new Date().toISOString(),
       photos:      inquiry.photos,
       updates:     [],
-    });
+    };
+    persistGuestJob(newJob); // fire-and-forget — AsyncStorage write
+    addJob(newJob);
 
     // ── Fire-and-forget: welcome message + push token ────────────────────
     // Do NOT await these — they must not block navigation to confirmation.

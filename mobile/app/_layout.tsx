@@ -8,7 +8,7 @@ import { useEffect, Component } from "react";
 import { View, Text } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import { loadGuestJobIds } from "@/lib/guest-jobs";
+import { loadGuestJobs } from "@/lib/guest-jobs";
 import type { ReactNode } from "react";
 
 // Keep the native splash screen visible until we explicitly hide it.
@@ -70,29 +70,11 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           if (session) setIsAuthenticated(true);
         } catch { /* session restore is non-fatal */ }
 
-        // Restore guest jobs from AsyncStorage → re-fetch from Supabase.
+        // Restore guest jobs from local AsyncStorage (no Supabase round-trip needed,
+        // and avoids RLS issues where anon users can't SELECT their own guest rows).
         try {
-          const guestIds = await loadGuestJobIds();
-          if (guestIds.length > 0) {
-            const { data, error } = await supabase
-              .from("jobs")
-              .select("id, type, category, description, address, status, created_at")
-              .in("id", guestIds);
-            if (!error && data && data.length > 0) {
-              const restored: Job[] = data.map((row: any) => ({
-                id:          row.id,
-                type:        row.type,
-                category:    row.category,
-                description: row.description,
-                address:     row.address,
-                status:      row.status,
-                date:        row.created_at,
-                photos:      [],
-                updates:     [],
-              }));
-              setJobs(restored);
-            }
-          }
+          const saved = await loadGuestJobs();
+          if (saved.length > 0) setJobs(saved as Job[]);
         } catch { /* guest job restore is non-fatal */ }
 
         // Push token registration is fire-and-forget (non-blocking).

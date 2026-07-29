@@ -10,6 +10,7 @@ import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { useState, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { persistGuestJob } from "@/lib/guest-jobs";
 
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
@@ -104,7 +105,7 @@ export default function SignUpScreen() {
       return;
     }
 
-    addJob({
+    const newJob = {
       id:          jobId,
       type:        inquiry.type ?? "enquiry",
       category:    inquiry.category,
@@ -114,7 +115,9 @@ export default function SignUpScreen() {
       date:        new Date().toISOString(),
       photos:      inquiry.photos,
       updates:     [],
-    });
+    };
+    persistGuestJob(newJob); // fire-and-forget
+    addJob(newJob);
 
     // ── Fire-and-forget: welcome message + marketing consent ───────────────
     // Neither must block navigation — they run in the background after routing.
