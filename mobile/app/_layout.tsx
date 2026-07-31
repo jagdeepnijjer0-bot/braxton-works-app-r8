@@ -54,32 +54,51 @@ function AppBootstrap({ children }: { children: ReactNode }) {
   const handleAuthCallback = useCallback(async (url: string) => {
     if (!url.includes("auth/callback")) return;
 
+    let session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
+
     try {
       // PKCE flow — authorization code in query string
       if (url.includes("code=")) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
-        if (!error && data.session) {
-          setIsAuthenticated(true);
-          router.replace("/(tabs)/profile");
-        }
-        return;
-      }
-
-      // Implicit flow — tokens in hash fragment
-      const fragment = url.split("#")[1] ?? "";
-      const params = new URLSearchParams(fragment);
-      const accessToken  = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      if (accessToken && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-        if (!error && data.session) {
-          setIsAuthenticated(true);
-          router.replace("/(tabs)/profile");
+        if (!error && data.session) session = data.session;
+      } else {
+        // Implicit flow — tokens in hash fragment
+        const fragment = url.split("#")[1] ?? "";
+        const params = new URLSearchParams(fragment);
+        const accessToken  = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (!error && data.session) session = data.session;
         }
       }
     } catch (e) {
       console.error("[auth-callback] failed to exchange session:", e);
+      return;
     }
+
+    if (!session) return;
+
+    setIsAuthenticated(true);
+
+    // Claim any guest jobs submitted during the pending-confirmation window.
+    // Only updates rows that still have user_id = NULL to avoid touching
+    // jobs that legitimately belong to another user.
+    try {
+      const saved = await loadGuestJobs();
+      if (saved.length > 0) {
+        const ids = saved.map((j) => j.id as string);
+        await supabase
+          .from("jobs")
+          .update({ user_id: session.user.id })
+          .in("id", ids)
+          .is("user_id", null);
+      }
+    } catch (e) {
+      console.warn("[auth-callback] guest job claim failed:", e);
+    }
+
+    router.replace("/(tabs)/profile");
   }, []);
 
   useEffect(() => {
