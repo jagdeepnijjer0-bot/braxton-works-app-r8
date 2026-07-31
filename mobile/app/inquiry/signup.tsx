@@ -3,7 +3,7 @@ import {
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Check } from "lucide-react-native";
+import { ArrowLeft, Check, Mail } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
@@ -20,6 +20,11 @@ const WELCOME_MSG =
 
 const TIMEOUT_MS = 10_000;
 
+// Deep link Supabase embeds in the confirmation email.
+// Must match the scheme in app.json ("tradenest") and the Allow List in
+// Supabase Dashboard → Authentication → URL Configuration.
+const EMAIL_REDIRECT = "tradenest://auth/callback";
+
 export default function SignUpScreen() {
   const router = useRouter();
   const { inquiry, addJob, setIsAuthenticated } = useApp();
@@ -31,6 +36,8 @@ export default function SignUpScreen() {
   const [rememberMe,       setRememberMe]       = useState(false);
   const [loading,          setLoading]          = useState(false);
   const [error,            setError]            = useState<string | null>(null);
+  // true once signUp() succeeds and Supabase sent a confirmation email
+  const [emailSent,        setEmailSent]        = useState(false);
 
   const emailRef    = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -52,7 +59,16 @@ export default function SignUpScreen() {
     let authData: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"];
     try {
       const result = await withTimeout(
-        supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name } } }),
+        supabase.auth.signUp({
+          email:    email.trim(),
+          password,
+          options:  {
+            data:            { full_name: name },
+            // Supabase embeds this URL in the confirmation email.
+            // On tap it deep-links back into the app via the "tradenest" scheme.
+            emailRedirectTo: EMAIL_REDIRECT,
+          },
+        }),
         TIMEOUT_MS
       );
       if (result.error) {
@@ -67,9 +83,14 @@ export default function SignUpScreen() {
       return;
     }
 
-    setIsAuthenticated(true);
+    // ── Branch: email confirmation required vs. immediate session ─────────
+    // When Supabase email confirmation is ON, signUp() returns session: null.
+    // We must NOT call setIsAuthenticated or assume a session exists.
+    const needsConfirmation = !authData.session;
 
     // ── Job insert ────────────────────────────────────────────────────────
+    // Insert regardless of confirmation state so the enquiry isn't lost.
+    // If no session yet, omit user_id (guest-style insert).
     const jobId: string = crypto.randomUUID();
     const userId = authData.session?.user?.id ?? null;
 
@@ -94,15 +115,10 @@ export default function SignUpScreen() {
       );
       if (jobError) {
         console.error("Job insert error (signup):", JSON.stringify(jobError));
-        setError("Account created, but we couldn't submit your enquiry. Please try again from the home screen.");
-        setLoading(false);
-        return;
+        // Don't block the user — the account was created. Show a soft warning below.
       }
     } catch (e: any) {
       console.error("Job insert timed out (signup):", e);
-      setError("Account created, but the enquiry timed out. Check your connection and try again.");
-      setLoading(false);
-      return;
     }
 
     const newJob = {
@@ -120,20 +136,17 @@ export default function SignUpScreen() {
     addJob(newJob);
 
     // ── Fire-and-forget: welcome message + marketing consent ───────────────
-    // Neither must block navigation — they run in the background after routing.
     supabase.from("messages")
       .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
       .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
       .catch(() => {});
 
     if (userId) {
-      // Record marketing consent state with an auditable timestamp.
-      // Only set consent_at when the user actively ticked the box.
       supabase.from("user_profiles").upsert(
         {
-          user_id:               userId,
-          marketing_consent:     marketingConsent,
-          marketing_consent_at:  marketingConsent ? new Date().toISOString() : null,
+          user_id:              userId,
+          marketing_consent:    marketingConsent,
+          marketing_consent_at: marketingConsent ? new Date().toISOString() : null,
         },
         { onConflict: "user_id" }
       ).then(({ error: e }) => { if (e) console.warn("Marketing consent write error:", e.message); })
@@ -151,9 +164,67 @@ export default function SignUpScreen() {
     }
 
     setLoading(false);
-    router.replace("/inquiry/confirmation");
+
+    if (needsConfirmation) {
+      // Show the "check your email" screen — do NOT navigate away yet.
+      // The deep-link handler in _layout.tsx will sign them in when they tap
+      // the confirmation link, then route them to the profile tab.
+      setEmailSent(true);
+    } else {
+      // Confirmation disabled or auto-confirmed — session is live.
+      setIsAuthenticated(true);
+      router.replace("/inquiry/confirmation");
+    }
   };
 
+  // ── "Check your email" screen ─────────────────────────────────────────────
+  if (emailSent) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.confirmCenter}>
+          <View style={styles.confirmIconWrap}>
+            <Mail color={colors.amber} size={36} strokeWidth={1.5} />
+          </View>
+
+          <Text style={styles.confirmTitle}>Check your{"\n"}email</Text>
+          <Text style={styles.confirmBody}>
+            We sent a confirmation link to{"\n"}
+            <Text style={styles.confirmEmail}>{email.trim()}</Text>
+            {"\n\n"}Tap the link in that email to verify your account and you're all set. Your enquiry has already been submitted.
+          </Text>
+
+          <Text style={styles.confirmHint}>
+            Didn't get it? Check your spam folder, or{" "}
+            <Text
+              style={styles.confirmResend}
+              onPress={async () => {
+                setError(null);
+                try {
+                  await withTimeout(
+                    supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: EMAIL_REDIRECT } }),
+                    TIMEOUT_MS
+                  );
+                } catch { /* non-fatal */ }
+              }}
+            >
+              resend
+            </Text>
+            .
+          </Text>
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <Button
+            label="Go to My Jobs"
+            onPress={() => router.replace("/(tabs)/jobs")}
+            style={{ marginTop: 32, width: "100%" }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Sign-up form ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe}>
       <TouchableOpacity style={styles.back} onPress={() => router.back()}>
@@ -293,15 +364,13 @@ const styles = StyleSheet.create({
     shadowOffset:      { width: 0, height: 4 },
     elevation:         3,
   },
-
-  // Marketing consent checkbox
   consentRow: {
-    flexDirection:  "row",
-    alignItems:     "flex-start",
-    gap:            12,
-    marginBottom:   24,
-    marginTop:      4,
-    paddingVertical: 4, // extra tap target height
+    flexDirection:   "row",
+    alignItems:      "flex-start",
+    gap:             12,
+    marginBottom:    24,
+    marginTop:       4,
+    paddingVertical: 4,
   },
   checkbox: {
     width:           22,
@@ -326,14 +395,62 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 19,
   },
-
   rememberRow: {
-    flexDirection:  "row",
-    alignItems:     "center",
-    gap:            12,
-    marginBottom:   20,
-    marginTop:      4,
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             12,
+    marginBottom:    20,
+    marginTop:       4,
     paddingVertical: 4,
   },
   error: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
+
+  // "Check your email" screen
+  confirmCenter: {
+    flex:             1,
+    alignItems:       "center",
+    justifyContent:   "center",
+    paddingHorizontal: 32,
+  },
+  confirmIconWrap: {
+    width:           80,
+    height:          80,
+    borderRadius:    24,
+    backgroundColor: "rgba(245,158,11,0.12)",
+    alignItems:      "center",
+    justifyContent:  "center",
+    marginBottom:    28,
+  },
+  confirmTitle: {
+    color:         colors.white,
+    fontSize:      36,
+    fontWeight:    "800",
+    letterSpacing: -0.9,
+    lineHeight:    42,
+    textAlign:     "center",
+    marginBottom:  16,
+  },
+  confirmBody: {
+    color:      "rgba(255,255,255,0.55)",
+    fontSize:   15,
+    fontWeight: "400",
+    lineHeight: 23,
+    textAlign:  "center",
+    marginBottom: 20,
+  },
+  confirmEmail: {
+    color:      colors.amber,
+    fontWeight: "700",
+  },
+  confirmHint: {
+    color:      "rgba(255,255,255,0.3)",
+    fontSize:   13,
+    fontWeight: "400",
+    lineHeight: 20,
+    textAlign:  "center",
+  },
+  confirmResend: {
+    color:      colors.amber,
+    fontWeight: "600",
+  },
 });

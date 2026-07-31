@@ -1,10 +1,11 @@
 import * as SplashScreen from "expo-splash-screen";
+import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useApp, type Job } from "@/lib/context";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, Component } from "react";
+import { useEffect, useCallback, Component } from "react";
 import { View, Text } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
@@ -46,6 +47,41 @@ function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setPushToken, setJobs, setIsAuthenticated } = useApp();
 
+  // Handle tradenest://auth/callback deep links from Supabase confirmation emails.
+  // Supabase sends tokens in the URL fragment (implicit flow): #access_token=...
+  // or as a query param (PKCE flow): ?code=...
+  // We handle both so the behaviour is correct regardless of Supabase project settings.
+  const handleAuthCallback = useCallback(async (url: string) => {
+    if (!url.includes("auth/callback")) return;
+
+    try {
+      // PKCE flow — authorization code in query string
+      if (url.includes("code=")) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+        if (!error && data.session) {
+          setIsAuthenticated(true);
+          router.replace("/(tabs)/profile");
+        }
+        return;
+      }
+
+      // Implicit flow — tokens in hash fragment
+      const fragment = url.split("#")[1] ?? "";
+      const params = new URLSearchParams(fragment);
+      const accessToken  = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (!error && data.session) {
+          setIsAuthenticated(true);
+          router.replace("/(tabs)/profile");
+        }
+      }
+    } catch (e) {
+      console.error("[auth-callback] failed to exchange session:", e);
+    }
+  }, []);
+
   useEffect(() => {
     // Hard timeout: if anything in boot hangs, hide the splash after 8 s so
     // the user can at least interact with the app.
@@ -63,6 +99,12 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           // Navigate before hiding splash so there's no flash of the tab bar.
           router.replace("/onboarding");
         }
+
+        // Check if the app was cold-launched via a confirmation deep link.
+        // This handles the case where the app wasn't running when the user
+        // tapped the email link.
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) await handleAuthCallback(initialUrl);
 
         // Restore auth session (best-effort — non-fatal if it fails/hangs).
         try {
@@ -94,6 +136,11 @@ function AppBootstrap({ children }: { children: ReactNode }) {
       setIsAuthenticated(!!session);
     });
 
+    // Listen for deep links while the app is already open (foreground / background).
+    const linkingSub = Linking.addEventListener("url", ({ url }) => {
+      handleAuthCallback(url);
+    });
+
     const notifSub = addNotificationResponseListener((jobId) => {
       if (jobId) router.push("/(tabs)/jobs");
       else        router.push("/(tabs)/messages");
@@ -102,6 +149,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     return () => {
       clearTimeout(timeout);
       authSub.unsubscribe();
+      linkingSub.remove();
       notifSub.remove();
     };
   }, []);
