@@ -54,19 +54,27 @@ function AppBootstrap({ children }: { children: ReactNode }) {
   const handleAuthCallback = useCallback(async (url: string) => {
     if (!url.includes("auth/callback")) return;
 
+    // Detect the flow type before exchanging tokens.
+    // For implicit flow Supabase puts type=recovery in the hash fragment;
+    // for PKCE it appears as a query param.
+    const fragment   = url.split("#")[1] ?? "";
+    const hashParams = new URLSearchParams(fragment);
+    const queryPart  = url.split("?")[1]?.split("#")[0] ?? "";
+    const queryParams = new URLSearchParams(queryPart);
+    const flowType   = hashParams.get("type") ?? queryParams.get("type") ?? "";
+    const isRecovery = flowType === "recovery";
+
     let session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
 
     try {
-      // PKCE flow — authorization code in query string
       if (url.includes("code=")) {
+        // PKCE flow — authorization code in query string
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
         if (!error && data.session) session = data.session;
       } else {
         // Implicit flow — tokens in hash fragment
-        const fragment = url.split("#")[1] ?? "";
-        const params = new URLSearchParams(fragment);
-        const accessToken  = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
+        const accessToken  = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
           const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (!error && data.session) session = data.session;
@@ -81,9 +89,15 @@ function AppBootstrap({ children }: { children: ReactNode }) {
 
     setIsAuthenticated(true);
 
-    // Claim any guest jobs submitted during the pending-confirmation window.
-    // Only updates rows that still have user_id = NULL to avoid touching
-    // jobs that legitimately belong to another user.
+    if (isRecovery) {
+      // Password recovery — send the user to set a new password.
+      // Do not claim guest jobs on this path.
+      router.replace("/auth/reset-password");
+      return;
+    }
+
+    // Email confirmation — claim any guest jobs submitted during the
+    // pending-confirmation window (only rows with user_id = NULL).
     try {
       const saved = await loadGuestJobs();
       if (saved.length > 0) {
@@ -189,6 +203,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
             <Stack.Screen name="(tabs)"     />
             <Stack.Screen name="inquiry"    options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="auth"       options={{ animation: "slide_from_bottom" }} />
           </Stack>
         </AppBootstrap>
       </AppProvider>

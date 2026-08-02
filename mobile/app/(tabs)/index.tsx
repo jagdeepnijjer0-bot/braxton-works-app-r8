@@ -14,14 +14,14 @@ import { Logo } from "@/components/ui/Logo";
 const trustSignals = [
   { icon: ShieldCheck, label: "Verified\nContractors" },
   { icon: Zap,         label: "Fast\nResponse"        },
-  { icon: Star,        label: "Rated &\nReviewed"     },
+  { icon: Star,        label: "Fully\nInsured"        },
 ];
 
 const services = [
   { icon: Wrench,   label: "Repairs"       },
   { icon: Settings, label: "Maintenance"   },
   { icon: HardHat,  label: "Renovations"  },
-  { icon: Sparkles, label: "Everything"   },
+  { icon: Sparkles, label: "Extensions"   },
 ];
 
 export default function HomeScreen() {

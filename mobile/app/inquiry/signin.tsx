@@ -179,7 +179,9 @@ export default function SignInScreen() {
     setError(null);
     try {
       const { error: resetError } = await withTimeout(
-        supabase.auth.resetPasswordForEmail(email.trim()),
+        supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: "tradenest://auth/callback",
+        }),
         TIMEOUT_MS
       );
       if (resetError) {

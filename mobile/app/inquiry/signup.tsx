@@ -4,6 +4,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Check, Mail } from "lucide-react-native";
+import { Logo } from "@/components/ui/Logo";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
@@ -233,6 +234,7 @@ export default function SignUpScreen() {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Logo size={52} style={{ alignSelf: "center", marginBottom: 28 }} />
         <Text style={styles.title}>Create your{"\n"}account</Text>
         <Text style={styles.sub}>Your enquiry will be submitted right after</Text>
 
@@ -279,7 +281,7 @@ export default function SignUpScreen() {
             ref={passwordRef}
             value={password}
             onChangeText={setPassword}
-            placeholder="Min. 6 characters"
+            placeholder="Enter a password"
             placeholderTextColor="rgba(15,23,42,0.35)"
             keyboardType="default"
             textContentType="newPassword"
@@ -289,8 +291,13 @@ export default function SignUpScreen() {
             autoCorrect={false}
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
-            style={styles.input}
+            style={[styles.input, password.length > 0 && password.length < 6 && styles.inputError]}
           />
+          {password.length > 0 && password.length < 6 ? (
+            <Text style={styles.passwordHintError}>Must be at least 6 characters</Text>
+          ) : (
+            <Text style={styles.passwordHint}>Must be at least 6 characters</Text>
+          )}
         </View>
 
         {/* Marketing consent — separate, optional, never pre-ticked (PECR / UK GDPR) */}
@@ -403,6 +410,9 @@ const styles = StyleSheet.create({
     marginTop:       4,
     paddingVertical: 4,
   },
+  inputError:       { borderWidth: 2, borderColor: "#EF4444" },
+  passwordHint:     { color: "rgba(255,255,255,0.3)", fontSize: 12, fontWeight: "400", marginTop: 6 },
+  passwordHintError:{ color: "#EF4444",               fontSize: 12, fontWeight: "600", marginTop: 6 },
   error: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
 
   // "Check your email" screen
