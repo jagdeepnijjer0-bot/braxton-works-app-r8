@@ -2,7 +2,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, Switch,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { User, LogOut, ChevronRight, Bell } from "lucide-react-native";
+import { User, LogOut, ChevronRight, Bell, MessageCircleQuestion } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/context";
@@ -221,6 +221,20 @@ export default function ProfileScreen() {
           Turning this off only affects marketing emails. You'll still receive important updates about your jobs and messages.
         </Text>
 
+        {/* Support */}
+        <Text style={styles.sectionLabel}>SUPPORT</Text>
+        <TouchableOpacity
+          style={styles.supportRow}
+          onPress={() => router.push("/inquiry/type")}
+          activeOpacity={0.8}
+        >
+          <View style={styles.supportIcon}>
+            <MessageCircleQuestion color={colors.amber} size={18} strokeWidth={2} />
+          </View>
+          <Text style={styles.supportText}>Submit a query</Text>
+          <ChevronRight color="rgba(255,255,255,0.25)" size={16} />
+        </TouchableOpacity>
+
         {/* Sign out */}
         <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut} activeOpacity={0.8}>
           <View style={styles.signOutIcon}>
@@ -335,6 +349,21 @@ const styles = StyleSheet.create({
     fontWeight:       "400",
     lineHeight:       17,
   },
+
+  supportRow: {
+    flexDirection:    "row",
+    alignItems:       "center",
+    marginHorizontal: 22,
+    backgroundColor:  "rgba(255,255,255,0.05)",
+    borderRadius:     18,
+    padding:          18,
+    gap:              14,
+    borderWidth:      1,
+    borderColor:      "rgba(255,255,255,0.08)",
+    marginBottom:     14,
+  },
+  supportIcon: { width: 38, height: 38, borderRadius: 11, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },
+  supportText: { color: colors.white, fontWeight: "600", fontSize: 15, flex: 1 },
 
   signOutRow: {
     flexDirection:    "row",

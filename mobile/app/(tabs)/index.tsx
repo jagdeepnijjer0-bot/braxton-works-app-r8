@@ -14,7 +14,7 @@ import { Logo } from "@/components/ui/Logo";
 const trustSignals = [
   { icon: ShieldCheck, label: "Verified\nContractors" },
   { icon: Zap,         label: "Fast\nResponse"        },
-  { icon: Star,        label: "Fully\nInsured"        },
+  { icon: Star,        label: "Fully\nManaged"        },
 ];
 
 const services = [

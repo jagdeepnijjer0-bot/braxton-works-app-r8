@@ -1,5 +1,5 @@
 import {
-  View, Text, StyleSheet, SafeAreaView, FlatList, TextInput,
+  View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -187,20 +187,22 @@ export default function MessagesScreen() {
       </View>
 
       {jobs.length === 0 ? (
-        <View style={styles.center}>
-          <View style={styles.iconWrap}>
-            <MessageSquare color={colors.amber} size={32} strokeWidth={2} />
+        <ScrollView contentContainerStyle={styles.emptyScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.emptyCard}>
+            <View style={styles.iconWrap}>
+              <MessageSquare color={colors.amber} size={28} strokeWidth={2} />
+            </View>
+            <Text style={styles.emptyTitle}>No messages yet</Text>
+            <Text style={styles.emptyBody}>
+              Once a contractor is assigned to your job, your conversation will appear here.
+            </Text>
+            <Button
+              label="Start an Enquiry"
+              onPress={() => router.push("/inquiry/type")}
+              style={{ marginTop: 20, width: "100%" }}
+            />
           </View>
-          <Text style={styles.emptyTitle}>No messages yet</Text>
-          <Text style={styles.emptyBody}>
-            Once a contractor is assigned to your job, your conversation will appear here.
-          </Text>
-          <Button
-            label="Start an Enquiry"
-            onPress={() => router.push("/inquiry/type")}
-            style={{ marginTop: 24, width: "100%" }}
-          />
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={jobs}
@@ -237,19 +239,17 @@ const styles = StyleSheet.create({
   header:        { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 20 },
   title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
   sub:           { color: colors.muted, fontSize: 14, fontWeight: "400", marginTop: 4 },
-  center: {
-    flex:             1,
-    marginHorizontal: 22,
-    marginBottom:     100,
-    backgroundColor:  "rgba(255,255,255,0.05)",
-    borderRadius:     24,
-    padding:          32,
-    alignItems:       "center",
-    justifyContent:   "center",
-    borderWidth:      1,
-    borderColor:      "rgba(255,255,255,0.08)",
+  emptyScroll:   { paddingHorizontal: 22, paddingBottom: 110 },
+  emptyCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius:    22,
+    padding:         32,
+    alignItems:      "center",
+    marginTop:       10,
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.08)",
   },
-  iconWrap:      { width: 72, height: 72, borderRadius: 20, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  iconWrap:      { width: 60, height: 60, borderRadius: 18, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle:    { color: colors.white, fontWeight: "800", fontSize: 20, marginBottom: 10, lineHeight: 26 },
   emptyBody:     { color: colors.muted, fontSize: 15, fontWeight: "400", textAlign: "center", lineHeight: 22 },
   threadNav:     { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
