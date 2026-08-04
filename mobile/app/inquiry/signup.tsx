@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useState, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persistGuestJob } from "@/lib/guest-jobs";
+import { registerPushToken } from "@/lib/notifications";
 
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
@@ -28,7 +29,7 @@ const EMAIL_REDIRECT = "tradenest://auth/callback";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { inquiry, addJob, setIsAuthenticated } = useApp();
+  const { inquiry, addJob, setIsAuthenticated, pushToken, setPushToken } = useApp();
 
   const [name,             setName]             = useState(inquiry.name);
   const [email,            setEmail]            = useState("");
@@ -136,11 +137,28 @@ export default function SignUpScreen() {
     persistGuestJob(newJob); // fire-and-forget
     addJob(newJob);
 
-    // ── Fire-and-forget: welcome message + marketing consent ───────────────
+    // ── Fire-and-forget: welcome message, push token, marketing consent ──────
     supabase.from("messages")
       .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
       .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
       .catch(() => {});
+
+    // Register push token so sign-up users receive notifications.
+    // Must NOT be awaited — shows a system permission dialog.
+    (async () => {
+      try {
+        const token = pushToken ?? await registerPushToken(jobId).then((t) => {
+          if (t) setPushToken(t);
+          return t;
+        });
+        if (token) {
+          await withTimeout(
+            supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+            10_000
+          );
+        }
+      } catch { /* non-fatal */ }
+    })();
 
     if (userId) {
       supabase.from("user_profiles").upsert(
