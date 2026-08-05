@@ -46,7 +46,7 @@ export default function SignUpScreen() {
   const canSubmit = name.trim() && email.trim() && password.length >= 6;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || loading) return;
     Keyboard.dismiss();
     if (!isSupabaseConfigured) {
       setError("App is not configured correctly. Please contact support.");

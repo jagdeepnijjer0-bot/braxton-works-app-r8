@@ -39,7 +39,7 @@ export default function SignInScreen() {
   const canSubmit = email.trim() && password.length >= 1;
 
   const handleSignIn = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || loading) return;
     Keyboard.dismiss();
     if (!isSupabaseConfigured) {
       setError("App is not configured correctly. Please contact support.");
