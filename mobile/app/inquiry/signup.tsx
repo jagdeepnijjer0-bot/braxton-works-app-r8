@@ -9,17 +9,17 @@ import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persistGuestJob } from "@/lib/guest-jobs";
 
 const REMEMBER_KEY  = "remembered_contact";
+const TIMEOUT_MS    = 15_000;
+const SLOW_AFTER_MS = 4_000;
 const REMEMBER_FLAG = "remember_me";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
-
-const TIMEOUT_MS = 10_000;
 
 // Deep link Supabase embeds in the confirmation email.
 // Must match the scheme in app.json ("tradenest") and the Allow List in
@@ -36,9 +36,17 @@ export default function SignUpScreen() {
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [rememberMe,       setRememberMe]       = useState(false);
   const [loading,          setLoading]          = useState(false);
+  const [slowConnection,   setSlowConnection]   = useState(false);
   const [error,            setError]            = useState<string | null>(null);
   // true once signUp() succeeds and Supabase sent a confirmation email
   const [emailSent,        setEmailSent]        = useState(false);
+
+  // Show a "taking longer than usual" hint after SLOW_AFTER_MS while loading
+  useEffect(() => {
+    if (!loading) { setSlowConnection(false); return; }
+    const t = setTimeout(() => setSlowConnection(true), SLOW_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const emailRef    = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -56,17 +64,17 @@ export default function SignUpScreen() {
     setLoading(true);
     setError(null);
 
-    // ── Sign up ───────────────────────────────────────────────────────────
-    let authData: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"];
+    let needsConfirmation = true;
+    let jobId: string | null = null;
+
     try {
+      // ── Sign up ─────────────────────────────────────────────────────────
       const result = await withTimeout(
         supabase.auth.signUp({
-          email:    email.trim(),
+          email:   email.trim(),
           password,
-          options:  {
+          options: {
             data:            { full_name: name },
-            // Supabase embeds this URL in the confirmation email.
-            // On tap it deep-links back into the app via the "tradenest" scheme.
             emailRedirectTo: EMAIL_REDIRECT,
           },
         }),
@@ -74,105 +82,94 @@ export default function SignUpScreen() {
       );
       if (result.error) {
         setError(result.error.message);
-        setLoading(false);
         return;
       }
-      authData = result.data;
-    } catch (e: any) {
-      setError(e?.message ?? "Sign-up request timed out. Check your connection and try again.");
-      setLoading(false);
-      return;
-    }
 
-    // ── Branch: email confirmation required vs. immediate session ─────────
-    // When Supabase email confirmation is ON, signUp() returns session: null.
-    // We must NOT call setIsAuthenticated or assume a session exists.
-    const needsConfirmation = !authData.session;
+      const authData = result.data;
+      needsConfirmation = !authData.session;
+      const userId = authData.session?.user?.id ?? null;
 
-    // ── Job insert ────────────────────────────────────────────────────────
-    // Insert regardless of confirmation state so the enquiry isn't lost.
-    // If no session yet, omit user_id (guest-style insert).
-    const jobId: string = crypto.randomUUID();
-    const userId = authData.session?.user?.id ?? null;
-
-    try {
-      const { error: jobError } = await withTimeout(
-        supabase.from("jobs").insert({
-          id:          jobId,
-          user_id:     userId,
-          type:        inquiry.type ?? "enquiry",
-          category:    inquiry.category,
-          description: inquiry.description,
-          address:     inquiry.address,
-          status:      "Enquiry Received",
-          timing:      inquiry.timing,
-          chosen_date: inquiry.chosenDate,
-          guest_name:  name            || null,
-          guest_phone: inquiry.phone   || null,
-          guest_contact_preference: inquiry.contactPreference || null,
-          source:      "app",
-        }),
-        TIMEOUT_MS
-      );
-      if (jobError) {
-        console.error("Job insert error (signup):", JSON.stringify(jobError));
-        // Don't block the user — the account was created. Show a soft warning below.
+      // ── Job insert ───────────────────────────────────────────────────────
+      jobId = crypto.randomUUID();
+      try {
+        const { error: jobError } = await withTimeout(
+          supabase.from("jobs").insert({
+            id:          jobId,
+            user_id:     userId,
+            type:        inquiry.type ?? "enquiry",
+            category:    inquiry.category,
+            description: inquiry.description,
+            address:     inquiry.address,
+            status:      "Enquiry Received",
+            timing:      inquiry.timing,
+            chosen_date: inquiry.chosenDate,
+            guest_name:  name            || null,
+            guest_phone: inquiry.phone   || null,
+            guest_contact_preference: inquiry.contactPreference || null,
+            source:      "app",
+          }),
+          TIMEOUT_MS
+        );
+        if (jobError) console.error("Job insert error (signup):", JSON.stringify(jobError));
+      } catch (e: any) {
+        console.error("Job insert timed out (signup):", e);
       }
+
+      const newJob = {
+        id:          jobId,
+        type:        inquiry.type ?? "enquiry",
+        category:    inquiry.category,
+        description: inquiry.description,
+        address:     inquiry.address,
+        status:      "Enquiry Received",
+        date:        new Date().toISOString(),
+        photos:      inquiry.photos,
+        updates:     [],
+      };
+      persistGuestJob(newJob); // fire-and-forget
+      addJob(newJob);
+
+      // ── Fire-and-forget: welcome message + marketing consent ─────────────
+      supabase.from("messages")
+        .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
+        .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
+        .catch(() => {});
+
+      if (userId) {
+        supabase.from("user_profiles").upsert(
+          {
+            user_id:              userId,
+            marketing_consent:    marketingConsent,
+            marketing_consent_at: marketingConsent ? new Date().toISOString() : null,
+          },
+          { onConflict: "user_id" }
+        ).then(({ error: e }) => { if (e) console.warn("Marketing consent write error:", e.message); })
+         .catch(() => {});
+      }
+
+      // Save remembered contact details if opted in
+      if (rememberMe) {
+        AsyncStorage.multiSet([
+          [REMEMBER_KEY,  JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })],
+          [REMEMBER_FLAG, "true"],
+        ]).catch(() => {});
+      } else {
+        AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+      }
+
     } catch (e: any) {
-      console.error("Job insert timed out (signup):", e);
+      setError("Couldn't create your account. Check your connection and try again.");
+      console.error("[signup] unexpected error:", e);
+    } finally {
+      setLoading(false);
     }
 
-    const newJob = {
-      id:          jobId,
-      type:        inquiry.type ?? "enquiry",
-      category:    inquiry.category,
-      description: inquiry.description,
-      address:     inquiry.address,
-      status:      "Enquiry Received",
-      date:        new Date().toISOString(),
-      photos:      inquiry.photos,
-      updates:     [],
-    };
-    persistGuestJob(newJob); // fire-and-forget
-    addJob(newJob);
-
-    // ── Fire-and-forget: welcome message, push token, marketing consent ──────
-    supabase.from("messages")
-      .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
-      .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
-      .catch(() => {});
-
-    if (userId) {
-      supabase.from("user_profiles").upsert(
-        {
-          user_id:              userId,
-          marketing_consent:    marketingConsent,
-          marketing_consent_at: marketingConsent ? new Date().toISOString() : null,
-        },
-        { onConflict: "user_id" }
-      ).then(({ error: e }) => { if (e) console.warn("Marketing consent write error:", e.message); })
-       .catch(() => {});
-    }
-
-    // Save remembered contact details if opted in
-    if (rememberMe) {
-      AsyncStorage.multiSet([
-        [REMEMBER_KEY,  JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })],
-        [REMEMBER_FLAG, "true"],
-      ]).catch(() => {});
-    } else {
-      AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
-    }
-
-    setLoading(false);
+    // Only navigate / show confirmation if sign-up succeeded (jobId was set)
+    if (!jobId) return;
 
     if (needsConfirmation) {
-      // Show the "check your email" screen — do NOT navigate away yet.
-      // The deep-link handler in _layout.tsx will sign them in when they tap
-      // the confirmation link, then route them to the profile tab.
       setEmailSent(true);
     } else {
-      // Confirmation disabled or auto-confirmed — session is live.
       setIsAuthenticated(true);
       router.replace("/inquiry/confirmation");
     }
@@ -344,6 +341,9 @@ export default function SignUpScreen() {
         />
 
         {loading && <ActivityIndicator color={colors.amber} style={{ marginTop: 16 }} />}
+        {slowConnection && (
+          <Text style={styles.slowHint}>Taking longer than usual — please wait…</Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -413,7 +413,8 @@ const styles = StyleSheet.create({
   inputError:       { borderWidth: 2, borderColor: "#EF4444" },
   passwordHint:     { color: "rgba(255,255,255,0.3)", fontSize: 12, fontWeight: "400", marginTop: 6 },
   passwordHintError:{ color: "#EF4444",               fontSize: 12, fontWeight: "600", marginTop: 6 },
-  error: { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
+  error:    { color: "#EF4444", fontSize: 13, fontWeight: "600", marginBottom: 12 },
+  slowHint: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "400", marginTop: 8, textAlign: "center" },
 
   // "Check your email" screen
   confirmCenter: {
