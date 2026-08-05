@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import { supabase } from "./supabase";
+import { supabase, withTimeout } from "./supabase";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -38,7 +38,10 @@ export async function registerPushToken(jobId?: string): Promise<string | null> 
 
   // Persist to Supabase so server can send targeted pushes
   if (jobId) {
-    await supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" });
+    await withTimeout(
+      supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+      10_000
+    ).catch(() => {});
   }
 
   return token;

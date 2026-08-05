@@ -42,7 +42,7 @@ export interface Job {
 
 interface AppContextValue {
   inquiry:            InquiryData;
-  setInquiry:         (d: InquiryData) => void;
+  setInquiry:         React.Dispatch<React.SetStateAction<InquiryData>>;
   resetInquiry:       () => void;
   jobs:               Job[];
   addJob:             (j: Job) => void;

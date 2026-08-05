@@ -49,9 +49,10 @@ export default function SignInScreen() {
     setLoading(true);
     setError(null);
 
-    // ── Sign in ───────────────────────────────────────────────────────────
-    let signInData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"];
+    let destination: string | null = null;
+
     try {
+      // ── Sign in ─────────────────────────────────────────────────────────
       const result = await withTimeout(
         supabase.auth.signInWithPassword({ email: email.trim(), password }),
         TIMEOUT_MS
@@ -65,109 +66,105 @@ export default function SignInScreen() {
         } else {
           setError(result.error.message);
         }
-        setLoading(false);
         return;
       }
-      signInData = result.data;
-    } catch (e: any) {
-      setError(e?.message ?? "Sign-in request timed out. Check your connection and try again.");
-      setLoading(false);
-      return;
-    }
 
-    setIsAuthenticated(true);
+      const signInData = result.data;
+      setIsAuthenticated(true);
 
-    // ── Enquiry path: submit the pending enquiry then confirm ─────────────
-    if (from === "enquiry" && inquiry.category) {
-      const jobId: string = crypto.randomUUID();
-      const userId = signInData.session?.user?.id ?? null;
+      // ── Enquiry path: submit the pending enquiry then confirm ─────────────
+      if (from === "enquiry" && inquiry.category) {
+        const jobId: string = crypto.randomUUID();
+        const userId = signInData.session?.user?.id ?? null;
 
-      try {
-        const { error: jobError } = await withTimeout(
-          supabase.from("jobs").insert({
-            id:          jobId,
-            user_id:     userId,
-            type:        inquiry.type ?? "enquiry",
-            category:    inquiry.category,
-            description: inquiry.description,
-            address:     inquiry.address,
-            status:      "Enquiry Received",
-            timing:      inquiry.timing,
-            chosen_date: inquiry.chosenDate,
-            source:      "app",
-          }),
-          TIMEOUT_MS
-        );
-        if (jobError) {
-          console.error("Job insert error (sign-in path):", JSON.stringify(jobError));
-          setError("Signed in, but couldn't submit your enquiry. Please try again from the home screen.");
-          setLoading(false);
+        try {
+          const { error: jobError } = await withTimeout(
+            supabase.from("jobs").insert({
+              id:          jobId,
+              user_id:     userId,
+              type:        inquiry.type ?? "enquiry",
+              category:    inquiry.category,
+              description: inquiry.description,
+              address:     inquiry.address,
+              status:      "Enquiry Received",
+              timing:      inquiry.timing,
+              chosen_date: inquiry.chosenDate,
+              source:      "app",
+            }),
+            TIMEOUT_MS
+          );
+          if (jobError) {
+            console.error("Job insert error (sign-in path):", JSON.stringify(jobError));
+            setError("Signed in, but couldn't submit your enquiry. Please try again from the home screen.");
+            return;
+          }
+        } catch (e: any) {
+          console.error("Job insert timed out (sign-in path):", e);
+          setError("Signed in, but the enquiry timed out. Check your connection and try again.");
           return;
         }
-      } catch (e: any) {
-        console.error("Job insert timed out (sign-in path):", e);
-        setError("Signed in, but the enquiry timed out. Check your connection and try again.");
-        setLoading(false);
+
+        const newJob = {
+          id:          jobId,
+          type:        inquiry.type ?? "enquiry",
+          category:    inquiry.category,
+          description: inquiry.description,
+          address:     inquiry.address,
+          status:      "Enquiry Received",
+          date:        new Date().toISOString(),
+          photos:      inquiry.photos,
+          updates:     [],
+        };
+        persistGuestJob(newJob); // fire-and-forget
+        addJob(newJob);
+
+        // ── Fire-and-forget: welcome message + push token ──────────────────
+        const sendAfterwork = async () => {
+          try {
+            const token = pushToken ?? await registerPushToken(jobId).then((t) => {
+              if (t) setPushToken(t);
+              return t;
+            });
+            await Promise.allSettled([
+              withTimeout(
+                supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
+                TIMEOUT_MS
+              ),
+              token
+                ? withTimeout(
+                    supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+                    TIMEOUT_MS
+                  )
+                : Promise.resolve(),
+            ]);
+          } catch { /* non-fatal */ }
+        };
+        sendAfterwork(); // intentionally NOT awaited
+
+        if (rememberMe) {
+          AsyncStorage.multiSet([
+            [REMEMBER_KEY,  JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })],
+            [REMEMBER_FLAG, "true"],
+          ]).catch(() => {});
+        } else {
+          AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+        }
+
+        destination = "/inquiry/confirmation";
         return;
       }
 
-      const newJob = {
-        id:          jobId,
-        type:        inquiry.type ?? "enquiry",
-        category:    inquiry.category,
-        description: inquiry.description,
-        address:     inquiry.address,
-        status:      "Enquiry Received",
-        date:        new Date().toISOString(),
-        photos:      inquiry.photos,
-        updates:     [],
-      };
-      persistGuestJob(newJob); // fire-and-forget
-      addJob(newJob);
+      // ── Profile path: sign-in from Profile tab ──────────────────────────
+      destination = "/(tabs)/profile";
 
-      // ── Fire-and-forget: welcome message + push token ──────────────────
-      // registerPushToken shows a system permission dialog and contacts Expo
-      // servers — must NOT be awaited on the navigation critical path.
-      const sendAfterwork = async () => {
-        try {
-          const token = pushToken ?? await registerPushToken(jobId).then((t) => {
-            if (t) setPushToken(t);
-            return t;
-          });
-          await Promise.allSettled([
-            withTimeout(
-              supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
-              TIMEOUT_MS
-            ),
-            token
-              ? withTimeout(
-                  supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
-                  TIMEOUT_MS
-                )
-              : Promise.resolve(),
-          ]);
-        } catch { /* non-fatal */ }
-      };
-      sendAfterwork(); // intentionally NOT awaited
-
-      // Save remembered contact details if opted in
-      if (rememberMe) {
-        AsyncStorage.multiSet([
-          [REMEMBER_KEY,  JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })],
-          [REMEMBER_FLAG, "true"],
-        ]).catch(() => {});
-      } else {
-        AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
-      }
-
+    } catch (e: any) {
+      setError("Couldn't sign in. Check your connection and try again.");
+      console.error("[signin] unexpected error:", e);
+    } finally {
       setLoading(false);
-      router.replace("/inquiry/confirmation");
-      return;
     }
 
-    // ── Profile path: sign-in from Profile tab ────────────────────────────
-    setLoading(false);
-    router.replace("/(tabs)/profile");
+    if (destination) router.replace(destination as any);
   };
 
   const handleForgotPassword = async () => {
