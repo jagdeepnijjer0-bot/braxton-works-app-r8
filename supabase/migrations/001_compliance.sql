@@ -2,54 +2,32 @@
 -- Compliance migration — run once in Supabase SQL Editor
 -- ============================================================
 
--- ─── 1. Add compliance columns to public.users ──────────────
-ALTER TABLE public.users
-  ADD COLUMN IF NOT EXISTS marketing_consent     boolean     NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS marketing_consent_at  timestamptz,
-  ADD COLUMN IF NOT EXISTS terms_accepted_at     timestamptz,
-  ADD COLUMN IF NOT EXISTS terms_version         text;
+-- ─── 1. user_profiles table (referenced by app code) ────────
+-- Stores marketing consent and terms acceptance separately from
+-- the core public.users profile row.
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id              uuid        NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  marketing_consent    boolean     NOT NULL DEFAULT false,
+  marketing_consent_at timestamptz,
+  terms_accepted_at    timestamptz,
+  terms_version        text,
+  created_at           timestamptz NOT NULL DEFAULT now()
+);
 
--- ─── 2. Allow users to insert their own profile row ─────────
--- (needed so the app can upsert after signUp without a service key)
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'users' AND policyname = 'users: self insert'
-  ) THEN
-    EXECUTE 'CREATE POLICY "users: self insert"
-      ON public.users FOR INSERT
-      WITH CHECK (auth.uid() = id)';
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND policyname = 'user_profiles: self read') THEN
+    EXECUTE 'CREATE POLICY "user_profiles: self read" ON public.user_profiles FOR SELECT USING (auth.uid() = user_id)';
   END IF;
-END;
-$$;
-
--- ─── 3. Update handle_new_user trigger to copy metadata ─────
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  INSERT INTO public.users (
-    id,
-    name,
-    marketing_consent,
-    marketing_consent_at,
-    terms_accepted_at,
-    terms_version
-  )
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data->>'full_name',
-    COALESCE((NEW.raw_user_meta_data->>'marketing_consent')::boolean, false),
-    CASE
-      WHEN (NEW.raw_user_meta_data->>'marketing_consent')::boolean = true
-      THEN NOW()
-      ELSE NULL
-    END,
-    (NEW.raw_user_meta_data->>'terms_accepted_at')::timestamptz,
-    NEW.raw_user_meta_data->>'terms_version'
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND policyname = 'user_profiles: self insert') THEN
+    EXECUTE 'CREATE POLICY "user_profiles: self insert" ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = user_id)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND policyname = 'user_profiles: self update') THEN
+    EXECUTE 'CREATE POLICY "user_profiles: self update" ON public.user_profiles FOR UPDATE USING (auth.uid() = user_id)';
+  END IF;
 END;
 $$;
 

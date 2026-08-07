@@ -6,7 +6,14 @@ export type InquiryType = "issue" | "inquiry" | null
 export type TimingOption = "asap" | "this-week" | "choose-date" | null
 export type ContactPreference = "phone" | "text" | "in-app" | null
 
-export type JobStatus = "New" | "Quoted" | "Booked" | "In Progress" | "Complete" | "Cancelled"
+export type JobStatus =
+  | "Enquiry Received"
+  | "Assigning Contractor"
+  | "Contractor Assigned"
+  | "Quote Ready"
+  | "Job Underway"
+  | "Job Completed"
+  | "Cancelled"
 
 export interface InquiryData {
   type: InquiryType

@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Image, Alert,
+  StyleSheet, SafeAreaView, Image, Alert, Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Camera, X, Image as ImageIcon } from "lucide-react-native";
@@ -24,11 +24,11 @@ export default function DescriptionScreen() {
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo library access to add photos to your inquiry.");
+      Alert.alert("Permission needed", "Allow photo library access to add photos to your enquiry.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       allowsMultipleSelection: false,
       quality: 0.8,
     });
@@ -40,7 +40,7 @@ export default function DescriptionScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow camera access to take a photo for your inquiry.");
+      Alert.alert("Permission needed", "Allow camera access to take a photo for your enquiry.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -116,7 +116,7 @@ export default function DescriptionScreen() {
 
         <Button
           label="Continue"
-          onPress={() => router.push("/inquiry/urgency")}
+          onPress={() => { Keyboard.dismiss(); router.push("/inquiry/urgency"); }}
           disabled={!canContinue}
           style={{ marginTop: 12 }}
         />

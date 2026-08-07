@@ -16,6 +16,12 @@ export async function PATCH(
       note?: string
     }
 
+    // Guard: fail fast with a clear message if service role key is missing
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("SUPABASE_SERVICE_ROLE_KEY is not set")
+      return NextResponse.json({ error: "Server misconfiguration: missing service role key" }, { status: 500 })
+    }
+
     const supabase = createAdminClient()
 
     // ── Fetch current job (need sheets_row_index and existing status) ──
@@ -26,6 +32,7 @@ export async function PATCH(
       .single()
 
     if (fetchError || !current) {
+      console.error("Job fetch error:", fetchError)
       return NextResponse.json({ error: "Job not found" }, { status: 404 })
     }
 
@@ -43,29 +50,32 @@ export async function PATCH(
         .eq("id", id)
 
       if (updateError) {
-        console.error("Job update error:", updateError)
-        return NextResponse.json({ error: "Failed to update job" }, { status: 500 })
+        console.error("Job update error:", JSON.stringify(updateError))
+        return NextResponse.json({ error: "Failed to update job", detail: updateError.message }, { status: 500 })
       }
     }
 
     // ── Write job_update row if status changed or note added ─
+    // Non-fatal: table may not exist yet or insert may fail — don't block the response
     if (body.status && body.status !== current.status) {
-      await supabase.from("job_updates").insert({
+      const { error: updateRowErr } = await supabase.from("job_updates").insert({
         job_id: id,
         type: "status_change",
         message: `Status changed to ${body.status}`,
       })
+      if (updateRowErr) console.warn("job_updates insert warning:", updateRowErr.message)
     }
 
     if (body.note?.trim()) {
-      await supabase.from("job_updates").insert({
+      const { error: noteErr } = await supabase.from("job_updates").insert({
         job_id: id,
         type: "note",
         message: body.note.trim(),
       })
+      if (noteErr) console.warn("job_updates note insert warning:", noteErr.message)
     }
 
-    // ── Sync to Google Sheets ────────────────────────────────
+    // ── Sync to Google Sheets (non-fatal) ────────────────────
     if (current.sheets_row_index && current.sheets_row_index > 0) {
       const sheetsUpdate: Parameters<typeof updateJobRow>[1] = {}
       if (body.status          !== undefined) sheetsUpdate.status         = body.status
@@ -76,8 +86,7 @@ export async function PATCH(
       try {
         await updateJobRow(current.sheets_row_index, sheetsUpdate)
       } catch (sheetsErr) {
-        console.error("Sheets update error:", sheetsErr)
-        // Non-fatal
+        console.error("Sheets update error (non-fatal):", sheetsErr)
       }
     }
 

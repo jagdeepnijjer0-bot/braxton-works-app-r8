@@ -1,5 +1,5 @@
 import {
-  View, Text, StyleSheet, SafeAreaView, FlatList, TextInput,
+  View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,21 +23,24 @@ function formatTime(iso: string) {
 }
 
 function ChatThread({ jobId, category }: { jobId: string; category: string }) {
-  const [messages, setMessages]   = useState<Message[]>([]);
-  const [draft,    setDraft]      = useState("");
-  const [loading,  setLoading]    = useState(true);
+  const [messages,  setMessages]  = useState<Message[]>([]);
+  const [draft,     setDraft]     = useState("");
+  const [loading,   setLoading]   = useState(true);
+  const [sendError, setSendError] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const load = async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("id, body, sender, created_at")
-        .eq("job_id", jobId)
-        .order("created_at", { ascending: true });
-      if (data) setMessages(data as Message[]);
+      try {
+        const { data } = await supabase
+          .from("messages")
+          .select("id, body, sender, created_at")
+          .eq("job_id", jobId)
+          .order("created_at", { ascending: true });
+        if (data) setMessages(data as Message[]);
+      } catch { /* non-fatal — show empty thread */ }
       setLoading(false);
     };
 
@@ -61,6 +64,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
     const body = draft.trim();
     if (!body) return;
     setDraft("");
+    setSendError(null);
 
     const optimistic: Message = {
       id:         `opt-${Date.now()}`,
@@ -70,7 +74,12 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
     };
     setMessages((prev) => [...prev, optimistic]);
 
-    await supabase.from("messages").insert({ job_id: jobId, body, sender: "user" });
+    try {
+      const { error } = await supabase.from("messages").insert({ job_id: jobId, body, sender: "user" });
+      if (error) setSendError("Message couldn't be sent — check your connection.");
+    } catch {
+      setSendError("Message couldn't be sent — check your connection.");
+    }
   };
 
   if (loading) {
@@ -101,7 +110,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
         ListEmptyComponent={
           <View style={thread.emptyBubble}>
             <Text style={thread.emptyBubbleText}>
-              Your inquiry has been submitted. A contractor will respond shortly.
+              Your enquiry has been submitted. A contractor will respond shortly.
             </Text>
           </View>
         }
@@ -109,7 +118,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
           const isUser = item.sender === "user";
           return (
             <View style={[thread.row, isUser ? thread.rowUser : thread.rowOther]}>
-              {!isUser && <View style={thread.avatar}><Text style={thread.avatarText}>B</Text></View>}
+              {!isUser && <View style={thread.avatar}><Text style={thread.avatarText}>T</Text></View>}
               <View style={[thread.bubble, isUser ? thread.bubbleUser : thread.bubbleOther]}>
                 <Text style={[thread.bubbleText, isUser ? thread.bubbleTextUser : thread.bubbleTextOther]}>
                   {item.body}
@@ -122,6 +131,10 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
           );
         }}
       />
+
+      {sendError && (
+        <Text style={thread.sendError}>{sendError}</Text>
+      )}
 
       <View style={thread.input}>
         <TextInput
@@ -174,20 +187,22 @@ export default function MessagesScreen() {
       </View>
 
       {jobs.length === 0 ? (
-        <View style={styles.center}>
-          <View style={styles.iconWrap}>
-            <MessageSquare color={colors.amber} size={32} strokeWidth={2} />
+        <ScrollView contentContainerStyle={styles.emptyScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.emptyCard}>
+            <View style={styles.iconWrap}>
+              <MessageSquare color={colors.amber} size={28} strokeWidth={2} />
+            </View>
+            <Text style={styles.emptyTitle}>No messages yet</Text>
+            <Text style={styles.emptyBody}>
+              Once a contractor is assigned to your job, your conversation will appear here.
+            </Text>
+            <Button
+              label="Start an Enquiry"
+              onPress={() => router.push("/inquiry/type")}
+              style={{ marginTop: 20, width: "100%" }}
+            />
           </View>
-          <Text style={styles.emptyTitle}>No messages yet</Text>
-          <Text style={styles.emptyBody}>
-            Once a contractor is assigned to your job, your conversation will appear here.
-          </Text>
-          <Button
-            label="Start an Inquiry"
-            onPress={() => router.push("/inquiry/type")}
-            style={{ marginTop: 24, width: "100%" }}
-          />
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={jobs}
@@ -200,7 +215,7 @@ export default function MessagesScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.threadAvatar}>
-                <Text style={styles.threadAvatarText}>B</Text>
+                <Text style={styles.threadAvatarText}>T</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.threadCategory}>{item.category}</Text>
@@ -224,19 +239,17 @@ const styles = StyleSheet.create({
   header:        { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 20 },
   title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
   sub:           { color: colors.muted, fontSize: 14, fontWeight: "400", marginTop: 4 },
-  center: {
-    flex:             1,
-    marginHorizontal: 22,
-    marginBottom:     100,
-    backgroundColor:  "rgba(255,255,255,0.05)",
-    borderRadius:     24,
-    padding:          32,
-    alignItems:       "center",
-    justifyContent:   "center",
-    borderWidth:      1,
-    borderColor:      "rgba(255,255,255,0.08)",
+  emptyScroll:   { paddingHorizontal: 22, paddingBottom: 110 },
+  emptyCard: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius:    22,
+    padding:         32,
+    alignItems:      "center",
+    marginTop:       10,
+    borderWidth:     1,
+    borderColor:     "rgba(255,255,255,0.08)",
   },
-  iconWrap:      { width: 72, height: 72, borderRadius: 20, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  iconWrap:      { width: 60, height: 60, borderRadius: 18, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle:    { color: colors.white, fontWeight: "800", fontSize: 20, marginBottom: 10, lineHeight: 26 },
   emptyBody:     { color: colors.muted, fontSize: 15, fontWeight: "400", textAlign: "center", lineHeight: 22 },
   threadNav:     { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
@@ -300,4 +313,5 @@ const thread = StyleSheet.create({
   },
   sendBtn:         { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.amber, alignItems: "center", justifyContent: "center" },
   sendBtnDisabled: { backgroundColor: "rgba(255,255,255,0.08)" },
+  sendError:       { color: "#EF4444", fontSize: 12, fontWeight: "600", paddingHorizontal: 16, paddingBottom: 6 },
 });
