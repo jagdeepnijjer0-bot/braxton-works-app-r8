@@ -21,16 +21,29 @@ SplashScreen.preventAutoHideAsync();
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // Log full details so the EAS build log / Metro console shows exactly where
+    // the crash originated — essential for tracking down "undefined is not a function".
+    console.error("[ErrorBoundary] caught:", error.message);
+    console.error("[ErrorBoundary] stack:", error.stack);
+    console.error("[ErrorBoundary] componentStack:", info.componentStack);
+  }
   render() {
     if (this.state.error) {
+      const err = this.state.error as Error;
       return (
         <View style={{ flex: 1, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <Text style={{ color: colors.amber, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
             Something went wrong
           </Text>
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", lineHeight: 20 }}>
-            {(this.state.error as Error).message}
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 8 }}>
+            {err.message}
           </Text>
+          {__DEV__ && (
+            <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, textAlign: "left", lineHeight: 14, fontFamily: "monospace" }}>
+              {err.stack?.slice(0, 600)}
+            </Text>
+          )}
         </View>
       );
     }

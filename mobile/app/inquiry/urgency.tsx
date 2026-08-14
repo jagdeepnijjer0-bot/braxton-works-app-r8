@@ -16,8 +16,18 @@ export default function UrgencyScreen() {
   const { inquiry, setInquiry } = useApp();
 
   const handleSelect = (timing: TimingOption) => {
-    setInquiry({ ...inquiry, timing });
-    router.push("/inquiry/contact");
+    try {
+      setInquiry({ ...inquiry, timing });
+    } catch (e) {
+      console.error("[urgency] setInquiry threw:", e);
+      throw e;
+    }
+    try {
+      router.push("/inquiry/contact");
+    } catch (e) {
+      console.error("[urgency] router.push threw:", e);
+      throw e;
+    }
   };
 
   return (
