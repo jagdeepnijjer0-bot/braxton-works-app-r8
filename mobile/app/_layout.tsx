@@ -6,7 +6,7 @@ import { AppProvider, useApp, type Job } from "@/lib/context";
 import { colors } from "@/lib/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useCallback, Component } from "react";
-import { View, Text } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { loadGuestJobs } from "@/lib/guest-jobs";
@@ -18,32 +18,55 @@ import type { ReactNode } from "react";
 SplashScreen.preventAutoHideAsync();
 
 // ─── Error boundary ──────────────────────────────────────────────────────────
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null };
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null; componentStack: string }
+> {
+  state = { error: null, componentStack: "" };
   static getDerivedStateFromError(error: Error) { return { error }; }
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    // Log full details so the EAS build log / Metro console shows exactly where
-    // the crash originated — essential for tracking down "undefined is not a function".
     console.error("[ErrorBoundary] caught:", error.message);
     console.error("[ErrorBoundary] stack:", error.stack);
     console.error("[ErrorBoundary] componentStack:", info.componentStack);
+    this.setState({ componentStack: info.componentStack ?? "" });
   }
   render() {
     if (this.state.error) {
-      const err = this.state.error as Error;
+      const err  = this.state.error as Error;
+      const body = [
+        "── MESSAGE ──",
+        err.message ?? "(none)",
+        "",
+        "── JS STACK ──",
+        err.stack    ?? "(none)",
+        "",
+        "── COMPONENT STACK ──",
+        this.state.componentStack || "(none)",
+      ].join("\n");
       return (
-        <View style={{ flex: 1, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", padding: 32 }}>
-          <Text style={{ color: colors.amber, fontSize: 18, fontWeight: "800", marginBottom: 12 }}>
-            Something went wrong
-          </Text>
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 8 }}>
-            {err.message}
-          </Text>
-          {__DEV__ && (
-            <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, textAlign: "left", lineHeight: 14, fontFamily: "monospace" }}>
-              {err.stack?.slice(0, 600)}
+        <View style={{ flex: 1, backgroundColor: "#0f172a" }}>
+          {/* Fixed header */}
+          <View style={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: "#0f172a" }}>
+            <Text style={{ color: "#F59E0B", fontSize: 15, fontWeight: "800", marginBottom: 4 }}>
+              App crash — screenshot this screen
             </Text>
-          )}
+            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
+              Scroll down to read the full stack trace
+            </Text>
+          </View>
+          {/* Scrollable stack dump */}
+          <ScrollView
+            style={{ flex: 1, backgroundColor: "#020617" }}
+            contentContainerStyle={{ padding: 12 }}
+            showsVerticalScrollIndicator
+          >
+            <Text
+              selectable
+              style={{ color: "#e2e8f0", fontSize: 10.5, lineHeight: 15, fontFamily: "monospace" }}
+            >
+              {body}
+            </Text>
+          </ScrollView>
         </View>
       );
     }

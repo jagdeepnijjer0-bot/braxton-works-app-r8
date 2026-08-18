@@ -14,6 +14,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
 
+// Warn at module-load time if any icon import resolved to undefined —
+// that would cause "undefined is not a function" when React tries to render it.
+if (!Phone)       console.warn("[contact] Phone icon is undefined — lucide import failed");
+if (!MessageSquare) console.warn("[contact] MessageSquare icon is undefined — lucide import failed");
+if (!Mail)        console.warn("[contact] Mail icon is undefined — lucide import failed");
+
 const contactOpts: { id: ContactPreference; label: string; icon: typeof Phone }[] = [
   { id: "phone",  label: "Phone call",     icon: Phone         },
   { id: "text",   label: "Text message",   icon: MessageSquare },
@@ -146,7 +152,7 @@ export default function ContactScreen() {
                 activeOpacity={0.82}
               >
                 <View style={[styles.prefIconBox, isSelected && styles.prefIconBoxSelected]}>
-                  <Icon color={isSelected ? colors.navy : colors.amber} size={18} strokeWidth={2} />
+                  {Icon ? <Icon color={isSelected ? colors.navy : colors.amber} size={18} strokeWidth={2} /> : null}
                 </View>
                 <Text style={[styles.prefLabel, isSelected && styles.prefLabelSelected]}>
                   {label}
