@@ -34,9 +34,14 @@ export default function ContactScreen() {
   const addressRef = useRef<TextInput>(null);
   const phoneRef   = useRef<TextInput>(null);
 
-  // Pre-fill from remembered contact if available
+  // Pre-fill from remembered contact if available.
+  // Uses individual getItem calls instead of multiGet — multiGet is not
+  // available in @react-native-async-storage/async-storage v3.x (New Architecture).
   useEffect(() => {
-    AsyncStorage.multiGet([REMEMBER_KEY, REMEMBER_FLAG]).then(([[, saved], [, flag]]) => {
+    Promise.all([
+      AsyncStorage.getItem(REMEMBER_KEY),
+      AsyncStorage.getItem(REMEMBER_FLAG),
+    ]).then(([saved, flag]) => {
       if (flag === "true" && saved) {
         const { name, address, phone } = JSON.parse(saved);
         setInquiry((prev: any) => ({
@@ -57,12 +62,15 @@ export default function ContactScreen() {
     Keyboard.dismiss();
 
     if (rememberMe) {
-      await AsyncStorage.multiSet([
-        [REMEMBER_KEY,  JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })],
-        [REMEMBER_FLAG, "true"],
+      await Promise.all([
+        AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })),
+        AsyncStorage.setItem(REMEMBER_FLAG, "true"),
       ]).catch(() => {});
     } else {
-      await AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+      await Promise.all([
+        AsyncStorage.removeItem(REMEMBER_KEY),
+        AsyncStorage.removeItem(REMEMBER_FLAG),
+      ]).catch(() => {});
     }
 
     router.push("/inquiry/auth-gate");

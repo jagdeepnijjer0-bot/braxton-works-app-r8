@@ -142,12 +142,15 @@ export default function SignInScreen() {
         sendAfterwork(); // intentionally NOT awaited
 
         if (rememberMe) {
-          AsyncStorage.multiSet([
-            [REMEMBER_KEY,  JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })],
-            [REMEMBER_FLAG, "true"],
+          Promise.all([
+            AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })),
+            AsyncStorage.setItem(REMEMBER_FLAG, "true"),
           ]).catch(() => {});
         } else {
-          AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+          Promise.all([
+            AsyncStorage.removeItem(REMEMBER_KEY),
+            AsyncStorage.removeItem(REMEMBER_FLAG),
+          ]).catch(() => {});
         }
 
         destination = "/inquiry/confirmation";

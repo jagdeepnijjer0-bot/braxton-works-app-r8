@@ -156,12 +156,15 @@ export default function SignUpScreen() {
 
       // Save remembered contact details if opted in
       if (rememberMe) {
-        AsyncStorage.multiSet([
-          [REMEMBER_KEY,  JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })],
-          [REMEMBER_FLAG, "true"],
+        Promise.all([
+          AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })),
+          AsyncStorage.setItem(REMEMBER_FLAG, "true"),
         ]).catch(() => {});
       } else {
-        AsyncStorage.multiRemove([REMEMBER_KEY, REMEMBER_FLAG]).catch(() => {});
+        Promise.all([
+          AsyncStorage.removeItem(REMEMBER_KEY),
+          AsyncStorage.removeItem(REMEMBER_FLAG),
+        ]).catch(() => {});
       }
 
     } catch (e: any) {
