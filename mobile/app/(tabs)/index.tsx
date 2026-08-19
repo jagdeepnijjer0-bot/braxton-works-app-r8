@@ -8,6 +8,7 @@ import {
 import { useRouter } from "expo-router";
 import { ShieldCheck, Zap, Star, Wrench, Settings, HardHat, Sparkles } from "lucide-react-native";
 import { colors } from "@/lib/colors";
+import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 
@@ -26,6 +27,7 @@ const services = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { resetInquiry } = useApp();
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -65,7 +67,7 @@ export default function HomeScreen() {
         {/* CTA — above the fold */}
         <Button
           label="Start your enquiry"
-          onPress={() => router.push("/inquiry/type")}
+          onPress={() => { resetInquiry(); router.push("/inquiry/type"); }}
           style={styles.cta}
         />
 

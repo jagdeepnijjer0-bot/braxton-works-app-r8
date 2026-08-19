@@ -4,6 +4,7 @@ import {
 import { useRouter } from "expo-router";
 import { KeyRound } from "lucide-react-native";
 import { colors } from "@/lib/colors";
+import { useApp } from "@/lib/context";
 import { supabase, withTimeout } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -13,6 +14,8 @@ const TIMEOUT_MS = 10_000;
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const { inquiry } = useApp();
+  const hasActiveInquiry = Boolean(inquiry.category);
 
   const [password,  setPassword]  = useState("");
   const [confirm,   setConfirm]   = useState("");
@@ -61,11 +64,19 @@ export default function ResetPasswordScreen() {
           </View>
           <Text style={styles.title}>Password{"\n"}updated</Text>
           <Text style={styles.sub}>You're signed in and ready to go.</Text>
-          <Button
-            label="Go to My Account"
-            onPress={() => router.replace("/(tabs)/profile")}
-            style={{ marginTop: 32, width: "100%" }}
-          />
+          {hasActiveInquiry ? (
+            <Button
+              label="Continue my enquiry"
+              onPress={() => router.replace("/inquiry/auth-gate" as any)}
+              style={{ marginTop: 32, width: "100%" }}
+            />
+          ) : (
+            <Button
+              label="Go to My Account"
+              onPress={() => router.replace("/(tabs)/profile")}
+              style={{ marginTop: 32, width: "100%" }}
+            />
+          )}
         </View>
       </SafeAreaView>
     );
