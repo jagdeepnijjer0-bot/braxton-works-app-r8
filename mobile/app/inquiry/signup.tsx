@@ -168,7 +168,14 @@ export default function SignUpScreen() {
       }
 
     } catch (e: any) {
-      setError("Couldn't create your account. Check your connection and try again.");
+      // Surface the real error — do NOT replace with a generic string.
+      // status and name identify Supabase AuthErrors vs. network errors vs. JS exceptions.
+      const detail = [
+        e?.name    ? `[${e.name}]`   : null,
+        e?.status  ? `HTTP ${e.status}` : null,
+        e?.message ?? String(e),
+      ].filter(Boolean).join(" ");
+      setError(`Sign-up error: ${detail}`);
       console.error("[signup] unexpected error:", e);
     } finally {
       setLoading(false);

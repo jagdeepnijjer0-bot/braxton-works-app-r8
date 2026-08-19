@@ -161,7 +161,12 @@ export default function SignInScreen() {
       destination = "/(tabs)/profile";
 
     } catch (e: any) {
-      setError("Couldn't sign in. Check your connection and try again.");
+      const detail = [
+        e?.name    ? `[${e.name}]`      : null,
+        e?.status  ? `HTTP ${e.status}` : null,
+        e?.message ?? String(e),
+      ].filter(Boolean).join(" ");
+      setError(`Sign-in error: ${detail}`);
       console.error("[signin] unexpected error:", e);
     } finally {
       setLoading(false);
