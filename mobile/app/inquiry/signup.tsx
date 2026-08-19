@@ -71,22 +71,19 @@ export default function SignUpScreen() {
 
     try {
       // ── Sign up ─────────────────────────────────────────────────────────
-      const result = await withTimeout(
-        supabase.auth.signUp({
-          email:   email.trim(),
-          password,
-          options: {
-            data: {
-              full_name:         name,
-              terms_accepted_at: new Date().toISOString(),
-              terms_version:     TERMS_VERSION,
-              marketing_consent: marketingConsent,
-            },
-            emailRedirectTo: EMAIL_REDIRECT,
+      const result = await supabase.auth.signUp({
+        email:   email.trim(),
+        password,
+        options: {
+          data: {
+            full_name:         name,
+            terms_accepted_at: new Date().toISOString(),
+            terms_version:     TERMS_VERSION,
+            marketing_consent: marketingConsent,
           },
-        }),
-        TIMEOUT_MS
-      );
+          emailRedirectTo: EMAIL_REDIRECT,
+        },
+      });
       if (result.error) {
         setError(result.error.message);
         return;
@@ -170,12 +167,17 @@ export default function SignUpScreen() {
     } catch (e: any) {
       // Surface the real error — do NOT replace with a generic string.
       // status and name identify Supabase AuthErrors vs. network errors vs. JS exceptions.
+      const msg = e?.message ?? String(e);
       const detail = [
-        e?.name    ? `[${e.name}]`   : null,
-        e?.status  ? `HTTP ${e.status}` : null,
-        e?.message ?? String(e),
+        e?.name   ? `[${e.name}]`      : null,
+        e?.status ? `HTTP ${e.status}` : null,
+        msg,
       ].filter(Boolean).join(" ");
-      setError(`Sign-up error: ${detail}`);
+      setError(
+        msg.toLowerCase().includes("timed out")
+          ? "Sign-up timed out — your connection may be slow. Please try again."
+          : `Sign-up error: ${detail}`
+      );
       console.error("[signup] unexpected error:", e);
     } finally {
       setLoading(false);

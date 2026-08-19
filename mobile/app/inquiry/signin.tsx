@@ -53,10 +53,7 @@ export default function SignInScreen() {
 
     try {
       // ── Sign in ─────────────────────────────────────────────────────────
-      const result = await withTimeout(
-        supabase.auth.signInWithPassword({ email: email.trim(), password }),
-        TIMEOUT_MS
-      );
+      const result = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (result.error) {
         const msg = result.error.message.toLowerCase();
         if (msg.includes("email not confirmed")) {
@@ -161,12 +158,17 @@ export default function SignInScreen() {
       destination = "/(tabs)/profile";
 
     } catch (e: any) {
+      const msg = e?.message ?? String(e);
       const detail = [
-        e?.name    ? `[${e.name}]`      : null,
-        e?.status  ? `HTTP ${e.status}` : null,
-        e?.message ?? String(e),
+        e?.name   ? `[${e.name}]`      : null,
+        e?.status ? `HTTP ${e.status}` : null,
+        msg,
       ].filter(Boolean).join(" ");
-      setError(`Sign-in error: ${detail}`);
+      setError(
+        msg.toLowerCase().includes("timed out")
+          ? "Sign-in timed out — your connection may be slow. Please try again."
+          : `Sign-in error: ${detail}`
+      );
       console.error("[signin] unexpected error:", e);
     } finally {
       setLoading(false);
