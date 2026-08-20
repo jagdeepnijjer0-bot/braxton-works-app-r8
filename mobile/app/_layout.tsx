@@ -1,3 +1,4 @@
+import "@/lib/polyfills"; // crypto polyfill — must be first
 import * as SplashScreen from "expo-splash-screen";
 import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
