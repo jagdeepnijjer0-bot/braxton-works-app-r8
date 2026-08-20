@@ -8,6 +8,7 @@ import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
 import { persistGuestJob } from "@/lib/guest-jobs";
+import { LogIn, UserPlus } from "lucide-react-native";
 
 const WELCOME_MSG =
   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
@@ -16,7 +17,7 @@ const TIMEOUT_MS = 10_000;
 
 export default function AuthGateScreen() {
   const router = useRouter();
-  const { inquiry, addJob, pushToken, setPushToken } = useApp();
+  const { inquiry, addJob, pushToken, setPushToken, setIsAuthenticated } = useApp();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -106,6 +107,13 @@ export default function AuthGateScreen() {
     }
     setLoading(true);
     setError(null);
+
+    // "Continue as Guest" is an explicit choice not to be authenticated.
+    // Clear any lingering session so the Profile tab correctly shows
+    // Sign In / Create Account rather than Sign Out.
+    await supabase.auth.signOut().catch(() => {});
+    setIsAuthenticated(false);
+
     const jobId = await submitEnquiry();
     setLoading(false);
     if (!jobId) {

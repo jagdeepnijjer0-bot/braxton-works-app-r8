@@ -92,12 +92,12 @@ export default function SignInScreen() {
           );
           if (jobError) {
             console.error("Job insert error (sign-in path):", JSON.stringify(jobError));
-            setError("Signed in, but couldn't submit your enquiry. Please try again from the home screen.");
+            setError(`Signed in, but couldn't submit your enquiry: ${jobError.message}`);
             return;
           }
         } catch (e: any) {
-          console.error("Job insert timed out (sign-in path):", e);
-          setError("Signed in, but the enquiry timed out. Check your connection and try again.");
+          console.error("Job insert error (sign-in path):", e);
+          setError(`Signed in, but enquiry submission failed: ${e?.message ?? String(e)}`);
           return;
         }
 
@@ -150,7 +150,11 @@ export default function SignInScreen() {
           ]).catch(() => {});
         }
 
-        destination = "/inquiry/confirmation";
+        // Navigate directly — do NOT use the destination+return pattern here.
+        // A `return` inside try exits the function after finally runs,
+        // so the `if (destination) router.replace(...)` after the try block
+        // would never execute.
+        router.replace("/inquiry/confirmation");
         return;
       }
 
