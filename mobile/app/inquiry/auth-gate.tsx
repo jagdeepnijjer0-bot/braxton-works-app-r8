@@ -109,9 +109,10 @@ export default function AuthGateScreen() {
     setError(null);
 
     // "Continue as Guest" is an explicit choice not to be authenticated.
-    // Clear any lingering session so the Profile tab correctly shows
-    // Sign In / Create Account rather than Sign Out.
-    await supabase.auth.signOut().catch(() => {});
+    // Use scope:'local' so the clear always succeeds locally regardless of
+    // network state — a full signOut() that fails server-side can leave a
+    // partially-cleared token that later causes "Invalid Refresh Token" errors.
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
     setIsAuthenticated(false);
 
     const jobId = await submitEnquiry();

@@ -56,7 +56,11 @@ export default function SignInScreen() {
       const result = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (result.error) {
         const msg = result.error.message.toLowerCase();
-        if (msg.includes("email not confirmed")) {
+        if (msg.includes("refresh token") || msg.includes("invalid refresh")) {
+          // Stale session in AsyncStorage — clear it locally and let the user retry.
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          setError("Your previous session expired. Please try signing in again.");
+        } else if (msg.includes("email not confirmed")) {
           setError("Please confirm your email address before signing in. Check your inbox for a confirmation link.");
         } else if (msg.includes("invalid login")) {
           setError("Incorrect email or password. Please try again.");

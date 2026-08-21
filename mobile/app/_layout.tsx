@@ -177,9 +177,17 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         if (initialUrl) await handleAuthCallback(initialUrl);
 
         // Restore auth session (best-effort — non-fatal if it fails/hangs).
+        // If getSession returns an error (e.g. stale/invalid refresh token left
+        // by a partial sign-out), clear the local session so subsequent auth
+        // calls start clean rather than hitting "Invalid Refresh Token".
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) setIsAuthenticated(true);
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.warn("[boot] stale session detected:", error.message);
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          } else if (session) {
+            setIsAuthenticated(true);
+          }
         } catch { /* session restore is non-fatal */ }
 
         // Restore guest jobs from local AsyncStorage (no Supabase round-trip needed,
