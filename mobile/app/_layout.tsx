@@ -10,7 +10,7 @@ import { useEffect, useCallback, Component } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import { loadGuestJobs } from "@/lib/guest-jobs";
+import { loadAndClearPendingClaimIds } from "@/lib/guest-jobs";
 import type { ReactNode } from "react";
 
 // Keep the native splash screen visible until we explicitly hide it.
@@ -84,6 +84,29 @@ function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setPushToken, setJobs, setIsAuthenticated } = useApp();
 
+  const fetchUserJobs = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("id, type, category, description, address, status, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        setJobs(data.map((row) => ({
+          id:          row.id,
+          type:        row.type,
+          category:    row.category,
+          description: row.description,
+          address:     row.address,
+          status:      row.status,
+          date:        row.created_at,
+          photos:      [],
+          updates:     [],
+        })) as Job[]);
+      }
+    } catch { /* non-fatal */ }
+  };
+
   // Handle tradenest://auth/callback deep links from Supabase confirmation emails.
   // Supabase sends tokens in the URL fragment (implicit flow): #access_token=...
   // or as a query param (PKCE flow): ?code=...
@@ -133,12 +156,11 @@ function AppBootstrap({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Email confirmation — claim any guest jobs submitted during the
-    // pending-confirmation window (only rows with user_id = NULL).
+    // Email confirmation — claim only jobs from the current sign-up flow
+    // (not all historical device guest jobs).
     try {
-      const saved = await loadGuestJobs();
-      if (saved.length > 0) {
-        const ids = saved.map((j) => j.id as string);
+      const ids = await loadAndClearPendingClaimIds();
+      if (ids.length > 0) {
         await supabase
           .from("jobs")
           .update({ user_id: session.user.id })
@@ -148,6 +170,8 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn("[auth-callback] guest job claim failed:", e);
     }
+
+    fetchUserJobs(session.user.id);
 
     router.replace("/(tabs)/profile");
   }, []);
@@ -187,15 +211,11 @@ function AppBootstrap({ children }: { children: ReactNode }) {
             await supabase.auth.signOut({ scope: "local" }).catch(() => {});
           } else if (session) {
             setIsAuthenticated(true);
+            // Fetch authenticated user's jobs from Supabase on boot.
+            // Guests see only in-memory jobs from the current session — no restore.
+            await fetchUserJobs(session.user.id);
           }
         } catch { /* session restore is non-fatal */ }
-
-        // Restore guest jobs from local AsyncStorage (no Supabase round-trip needed,
-        // and avoids RLS issues where anon users can't SELECT their own guest rows).
-        try {
-          const saved = await loadGuestJobs();
-          if (saved.length > 0) setJobs(saved as Job[]);
-        } catch { /* guest job restore is non-fatal */ }
 
         // Push token registration is fire-and-forget (non-blocking).
         registerPushToken().then((t) => { if (t) setPushToken(t); });
@@ -210,8 +230,13 @@ function AppBootstrap({ children }: { children: ReactNode }) {
 
     boot();
 
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user?.id) {
+        fetchUserJobs(session.user.id);
+      } else if (event === "SIGNED_OUT") {
+        setJobs([]);
+      }
     });
 
     // Listen for deep links while the app is already open (foreground / background).

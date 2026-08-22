@@ -48,3 +48,26 @@ export async function loadGuestJobs(): Promise<Record<string, unknown>[]> {
     return [];
   }
 }
+
+const PENDING_CLAIM_KEY = "pending_claim_job_ids";
+
+export async function addPendingClaimId(jobId: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_CLAIM_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!ids.includes(jobId)) {
+      await AsyncStorage.setItem(PENDING_CLAIM_KEY, JSON.stringify([...ids, jobId]));
+    }
+  } catch { /* non-fatal */ }
+}
+
+export async function loadAndClearPendingClaimIds(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_CLAIM_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    await AsyncStorage.removeItem(PENDING_CLAIM_KEY).catch(() => {});
+    return ids;
+  } catch {
+    return [];
+  }
+}

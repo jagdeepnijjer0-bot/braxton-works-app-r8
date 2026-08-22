@@ -11,7 +11,7 @@ import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { useState, useRef, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { persistGuestJob } from "@/lib/guest-jobs";
+import { persistGuestJob, addPendingClaimId } from "@/lib/guest-jobs";
 
 const REMEMBER_KEY  = "remembered_contact";
 const TIMEOUT_MS    = 15_000;
@@ -132,6 +132,10 @@ export default function SignUpScreen() {
       };
       persistGuestJob(newJob); // fire-and-forget
       addJob(newJob);
+
+      // Track this job for claim on email confirmation — scoped to THIS sign-up flow only.
+      // Only needed when user_id is null (email not yet confirmed / auto-confirm off).
+      if (userId === null) addPendingClaimId(jobId).catch(() => {});
 
       // ── Fire-and-forget: welcome message + marketing consent ─────────────
       supabase.from("messages")
