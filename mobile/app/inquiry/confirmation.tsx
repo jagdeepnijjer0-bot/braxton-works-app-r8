@@ -33,10 +33,6 @@ export default function ConfirmationScreen() {
           We'll be in touch shortly —{"\n"}usually within 2 hours.
         </Text>
 
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Response guaranteed or we follow up</Text>
-        </View>
-
         <View style={styles.buttons}>
           <Button label="View My Jobs"  onPress={handleJobs} style={{ marginBottom: 12 }} />
           <Button label="Return Home"   onPress={handleHome} variant="secondary" />
@@ -72,15 +68,5 @@ const styles = StyleSheet.create({
   },
   heading:   { color: colors.white, fontSize: 42, fontWeight: "800", textAlign: "center", letterSpacing: -1, lineHeight: 48, marginBottom: 16 },
   sub:       { color: colors.muted, fontSize: 16, fontWeight: "400", textAlign: "center", lineHeight: 24, marginBottom: 24 },
-  badge: {
-    backgroundColor:  "rgba(245,158,11,0.12)",
-    borderRadius:     20,
-    paddingHorizontal: 16,
-    paddingVertical:  8,
-    borderWidth:      1,
-    borderColor:      "rgba(245,158,11,0.2)",
-    marginBottom:     40,
-  },
-  badgeText: { color: colors.amber, fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },
-  buttons:   { width: "100%" },
+  buttons:   { width: "100%", marginTop: 40 },
 });

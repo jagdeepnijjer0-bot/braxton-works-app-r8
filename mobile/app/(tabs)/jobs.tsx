@@ -15,37 +15,39 @@ type Tab = "active" | "completed";
 
 export default function JobsScreen() {
   const router = useRouter();
-  const { jobs, updateJobStatus } = useApp();
+  const { jobs, updateJobStatus, isAuthenticated } = useApp();
   const [tab, setTab] = useState<Tab>("active");
 
-  // Subscribe to UPDATE events on all known jobs so status pills update live
+  // Subscribe to UPDATE events on all known jobs so status pills update live.
+  // All .on() listeners are registered on one channel before .subscribe() is called —
+  // Supabase throws if you add listeners to an already-subscribed channel.
   useEffect(() => {
     if (jobs.length === 0) return;
 
-    // One channel per job (Supabase filter only supports eq on one value)
-    const channels = jobs.map((job) =>
-      supabase
-        .channel(`jobs-list:${job.id}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${job.id}` },
-          (payload) => {
-            const newStatus = (payload.new as { status: JobStatus }).status;
-            if (newStatus && newStatus !== job.status) {
-              const u: JobUpdate = {
-                id:         `rt-${Date.now()}`,
-                message:    `Status changed to ${newStatus}`,
-                type:       "status_change",
-                created_at: new Date().toISOString(),
-              };
-              updateJobStatus(job.id, newStatus, u);
-            }
-          }
-        )
-        .subscribe()
-    );
+    const channel = supabase.channel("jobs-list-updates");
 
-    return () => { channels.forEach((c) => supabase.removeChannel(c)); };
+    jobs.forEach((job) => {
+      channel.on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${job.id}` },
+        (payload) => {
+          const newStatus = (payload.new as { status: JobStatus }).status;
+          if (newStatus && newStatus !== job.status) {
+            const u: JobUpdate = {
+              id:         `rt-${Date.now()}`,
+              message:    `Status changed to ${newStatus}`,
+              type:       "status_change",
+              created_at: new Date().toISOString(),
+            };
+            updateJobStatus(job.id, newStatus, u);
+          }
+        }
+      );
+    });
+
+    channel.subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [jobs.map((j) => j.id).join(",")]); // re-subscribe only when job list changes
 
   const filtered = jobs.filter((j) =>
@@ -73,6 +75,18 @@ export default function JobsScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {!isAuthenticated && jobs.length > 0 && (
+        <View style={styles.guestBanner}>
+          <Text style={styles.guestBannerText}>
+            Guest enquiries are only saved on this device for 24 hours.{" "}
+            <Text style={styles.guestBannerLink} onPress={() => router.push("/inquiry/signup" as any)}>
+              Create an account
+            </Text>
+            {" "}to keep track of your jobs.
+          </Text>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
@@ -149,6 +163,9 @@ const styles = StyleSheet.create({
   tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   tabText:       { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 13 },
   tabTextActive: { color: colors.navy },
+  guestBanner:     { marginHorizontal: 22, marginBottom: 14, backgroundColor: "rgba(245,158,11,0.08)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(245,158,11,0.18)" },
+  guestBannerText: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  guestBannerLink: { color: colors.amber, fontWeight: "600" },
   scroll:        { paddingHorizontal: 22, paddingBottom: 110 },
   empty: {
     backgroundColor: "rgba(255,255,255,0.05)",

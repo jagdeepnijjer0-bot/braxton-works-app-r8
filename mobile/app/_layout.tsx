@@ -10,7 +10,7 @@ import { useEffect, useCallback, Component } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import { loadAndClearPendingClaimIds } from "@/lib/guest-jobs";
+import { loadAndClearPendingClaimIds, loadRecentGuestJobs } from "@/lib/guest-jobs";
 import type { ReactNode } from "react";
 
 // Keep the native splash screen visible until we explicitly hide it.
@@ -212,8 +212,13 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           } else if (session) {
             setIsAuthenticated(true);
             // Fetch authenticated user's jobs from Supabase on boot.
-            // Guests see only in-memory jobs from the current session — no restore.
             await fetchUserJobs(session.user.id);
+          } else {
+            // Guest: restore only recent (under-24h) enquiries from this device.
+            try {
+              const recent = await loadRecentGuestJobs();
+              if (recent.length > 0) setJobs(recent as Job[]);
+            } catch { /* non-fatal */ }
           }
         } catch { /* session restore is non-fatal */ }
 

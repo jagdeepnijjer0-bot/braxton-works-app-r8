@@ -29,7 +29,7 @@ const EMAIL_REDIRECT = "tradenest://auth/callback";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { inquiry, addJob, setIsAuthenticated } = useApp();
+  const { inquiry, addJob, setJobs, setIsAuthenticated } = useApp();
 
   const [name,             setName]             = useState(inquiry.name);
   const [email,            setEmail]            = useState("");
@@ -68,6 +68,7 @@ export default function SignUpScreen() {
 
     let needsConfirmation = true;
     let jobId: string | null = null;
+    let submittedJob: Record<string, unknown> | null = null;
 
     try {
       // ── Sign up ─────────────────────────────────────────────────────────
@@ -130,6 +131,7 @@ export default function SignUpScreen() {
         photos:      inquiry.photos,
         updates:     [],
       };
+      submittedJob = newJob;
       persistGuestJob(newJob); // fire-and-forget
       addJob(newJob);
 
@@ -191,6 +193,10 @@ export default function SignUpScreen() {
     if (!jobId) return;
 
     if (needsConfirmation) {
+      // Replace any stale jobs from a prior session with only the current enquiry.
+      // The user isn't authenticated yet (email unconfirmed), so we can't fetch
+      // from Supabase by user_id — show only what they just submitted.
+      if (submittedJob) setJobs([submittedJob as any]);
       setEmailSent(true);
     } else {
       setIsAuthenticated(true);

@@ -22,17 +22,20 @@ export async function loadGuestJobIds(): Promise<string[]> {
   }
 }
 
+const GUEST_JOB_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 // Store the full job object locally so we can restore without a Supabase round-trip.
 // This avoids RLS issues where anon users can't SELECT their own guest jobs.
 export async function persistGuestJob(job: Record<string, unknown>): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(GUEST_JOBS_KEY);
     const jobs: Record<string, unknown>[] = raw ? JSON.parse(raw) : [];
+    const entry = { ...job, _savedAt: Date.now() };
     const idx = jobs.findIndex((j) => j.id === job.id);
     if (idx >= 0) {
-      jobs[idx] = job;
+      jobs[idx] = entry;
     } else {
-      jobs.unshift(job);
+      jobs.unshift(entry);
     }
     await AsyncStorage.setItem(GUEST_JOBS_KEY, JSON.stringify(jobs));
     // Keep legacy ID list in sync
@@ -44,6 +47,18 @@ export async function loadGuestJobs(): Promise<Record<string, unknown>[]> {
   try {
     const raw = await AsyncStorage.getItem(GUEST_JOBS_KEY);
     return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Load only guest jobs saved within the last 24 hours (for display on My Jobs).
+export async function loadRecentGuestJobs(): Promise<Record<string, unknown>[]> {
+  try {
+    const raw = await AsyncStorage.getItem(GUEST_JOBS_KEY);
+    const jobs: Record<string, unknown>[] = raw ? JSON.parse(raw) : [];
+    const cutoff = Date.now() - GUEST_JOB_TTL_MS;
+    return jobs.filter((j) => typeof j._savedAt === "number" && j._savedAt >= cutoff);
   } catch {
     return [];
   }
