@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Wrench, ChevronRight } from "lucide-react-native";
@@ -128,6 +128,27 @@ export default function JobsScreen() {
                     <Text style={styles.cardCat}>{job.category}</Text>
                   </View>
                   <Text style={styles.cardDesc} numberOfLines={2}>{job.description}</Text>
+                  {job.photos && job.photos.length > 0 && (
+                    <View style={styles.thumbRow}>
+                      {job.photos.slice(0, 3).map((uri, i) => {
+                        const isLast = i === 2 && job.photos.length > 3;
+                        return (
+                          <View key={i} style={styles.thumbWrap}>
+                            <Image
+                              source={{ uri }}
+                              style={styles.thumb}
+                              resizeMode="cover"
+                            />
+                            {isLast && (
+                              <View style={styles.thumbOverlay}>
+                                <Text style={styles.thumbOverlayText}>+{job.photos.length - 3}</Text>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                   <View style={[styles.pill, { backgroundColor: pill.bg }]}>
                     <Text style={[styles.pillText, { color: pill.text }]}>
                       {job.status}
@@ -198,6 +219,11 @@ const styles = StyleSheet.create({
   cardDot:       { color: colors.muted, fontSize: 10 },
   cardCat:       { color: colors.slate, fontSize: 12, fontWeight: "400" },
   cardDesc:      { color: colors.navy, fontWeight: "800", fontSize: 15, marginBottom: 10, lineHeight: 22 },
+  thumbRow:      { flexDirection: "row", gap: 6, marginBottom: 10 },
+  thumbWrap:     { position: "relative" },
+  thumb:         { width: 64, height: 64, borderRadius: 8, backgroundColor: "rgba(15,23,42,0.06)" },
+  thumbOverlay:  { position: "absolute", inset: 0, borderRadius: 8, backgroundColor: "rgba(15,23,42,0.55)", alignItems: "center", justifyContent: "center" },
+  thumbOverlayText: { color: colors.white, fontSize: 13, fontWeight: "700" },
   pill:          { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   pillText:      { fontSize: 11, fontWeight: "600" },
   chevronWrap:   { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(15,23,42,0.05)", alignItems: "center", justifyContent: "center" },
