@@ -29,7 +29,7 @@ const EMAIL_REDIRECT = "tradenest://auth/callback";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { inquiry, addJob, setJobs, setIsAuthenticated } = useApp();
+  const { inquiry, addJob, setJobs, setIsAuthenticated, isAuthenticated } = useApp();
 
   const [name,             setName]             = useState(inquiry.name);
   const [email,            setEmail]            = useState("");
@@ -65,6 +65,10 @@ export default function SignUpScreen() {
 
     setLoading(true);
     setError(null);
+
+    // Snapshot auth state before the async sign-up so we know whether to clear
+    // stale authenticated jobs from context once the new account is created.
+    const wasAuthenticated = isAuthenticated;
 
     let needsConfirmation = true;
     let jobId: string | null = null;
@@ -193,10 +197,10 @@ export default function SignUpScreen() {
     if (!jobId) return;
 
     if (needsConfirmation) {
-      // Replace any stale jobs from a prior session with only the current enquiry.
-      // The user isn't authenticated yet (email unconfirmed), so we can't fetch
-      // from Supabase by user_id — show only what they just submitted.
-      if (submittedJob) setJobs([submittedJob as any]);
+      // If the user was previously authenticated (switching accounts), clear their
+      // stale jobs and show only the new enquiry. If they were already a guest,
+      // addJob() already appended — don't overwrite the list.
+      if (wasAuthenticated && submittedJob) setJobs([submittedJob as any]);
       setEmailSent(true);
     } else {
       setIsAuthenticated(true);

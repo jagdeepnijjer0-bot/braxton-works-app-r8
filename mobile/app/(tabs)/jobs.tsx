@@ -7,7 +7,7 @@ import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
 import { STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES, type JobStatus } from "@/lib/status";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { JobUpdate } from "@/lib/context";
 
@@ -18,13 +18,24 @@ export default function JobsScreen() {
   const { jobs, updateJobStatus, isAuthenticated } = useApp();
   const [tab, setTab] = useState<Tab>("active");
 
-  // Subscribe to UPDATE events on all known jobs so status pills update live.
-  // All .on() listeners are registered on one channel before .subscribe() is called —
-  // Supabase throws if you add listeners to an already-subscribed channel.
+  // Ref holds the active Supabase channel so we can tear it down before re-subscribing.
+  // Using a ref (not state) prevents a render cycle; the channel object is mutable side-effect only.
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   useEffect(() => {
+    // Always tear down whatever channel exists first — even if the dep array fired twice
+    // (React Strict Mode) or the cleanup from the previous run hasn't completed yet.
+    // removeChannel() is synchronous on the JS side; the socket unsubscribe is best-effort.
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
     if (jobs.length === 0) return;
 
-    const channel = supabase.channel("jobs-list-updates");
+    // Use a unique name per subscription so Supabase never returns a cached,
+    // already-subscribed channel object — which would cause .on() to throw.
+    const channel = supabase.channel(`jobs-list-${jobs.map((j) => j.id).join("-")}`);
 
     jobs.forEach((job) => {
       channel.on(
@@ -46,8 +57,14 @@ export default function JobsScreen() {
     });
 
     channel.subscribe();
+    channelRef.current = channel;
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, [jobs.map((j) => j.id).join(",")]); // re-subscribe only when job list changes
 
   const filtered = jobs.filter((j) =>
