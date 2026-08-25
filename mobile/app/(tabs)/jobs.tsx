@@ -18,43 +18,48 @@ export default function JobsScreen() {
   const { jobs, updateJobStatus, isAuthenticated } = useApp();
   const [tab, setTab] = useState<Tab>("active");
 
-  // Ref holds the active Supabase channel so we can tear it down before re-subscribing.
-  // Using a ref (not state) prevents a render cycle; the channel object is mutable side-effect only.
+  // jobsRef gives the realtime handler access to the current jobs list without
+  // making `jobs` a dependency of the subscription effect (which would re-create
+  // the channel on every status update, causing the .on()-after-subscribe crash).
+  const jobsRef = useRef(jobs);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
+  // Stable channel ref — hold the active Supabase channel across renders.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    // Always tear down whatever channel exists first — even if the dep array fired twice
-    // (React Strict Mode) or the cleanup from the previous run hasn't completed yet.
-    // removeChannel() is synchronous on the JS side; the socket unsubscribe is best-effort.
+    // Tear down any existing channel before creating a new one.
+    // This runs on mount and whenever isAuthenticated changes.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    if (jobs.length === 0) return;
+    // Guests have no SELECT RLS on jobs — realtime events won't arrive for them anyway.
+    if (!isAuthenticated) return;
 
-    // Use a unique name per subscription so Supabase never returns a cached,
-    // already-subscribed channel object — which would cause .on() to throw.
-    const channel = supabase.channel(`jobs-list-${jobs.map((j) => j.id).join("-")}`);
+    // Stable channel name — does NOT depend on job IDs, so receiving a realtime
+    // update (which changes jobs state) never triggers a re-subscribe.
+    // RLS filters events server-side to this user's own rows.
+    const channel = supabase.channel("jobs-realtime");
 
-    jobs.forEach((job) => {
-      channel.on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${job.id}` },
-        (payload) => {
-          const newStatus = (payload.new as { status: JobStatus }).status;
-          if (newStatus && newStatus !== job.status) {
-            const u: JobUpdate = {
-              id:         `rt-${Date.now()}`,
-              message:    `Status changed to ${newStatus}`,
-              type:       "status_change",
-              created_at: new Date().toISOString(),
-            };
-            updateJobStatus(job.id, newStatus, u);
-          }
-        }
-      );
-    });
+    channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "jobs" },
+      (payload) => {
+        const row = payload.new as { id?: string; status?: JobStatus };
+        if (!row.id || !row.status) return;
+        const current = jobsRef.current.find((j) => j.id === row.id);
+        if (!current || current.status === row.status) return;
+        const u: JobUpdate = {
+          id:         `rt-${Date.now()}`,
+          message:    `Status changed to ${row.status}`,
+          type:       "status_change",
+          created_at: new Date().toISOString(),
+        };
+        updateJobStatus(row.id, row.status, u);
+      }
+    );
 
     channel.subscribe();
     channelRef.current = channel;
@@ -65,7 +70,7 @@ export default function JobsScreen() {
         channelRef.current = null;
       }
     };
-  }, [jobs.map((j) => j.id).join(",")]); // re-subscribe only when job list changes
+  }, [isAuthenticated]); // stable dep — never re-runs because of a jobs update
 
   const filtered = jobs.filter((j) =>
     tab === "active" ? ACTIVE_STATUSES.includes(j.status) : COMPLETE_STATUSES.includes(j.status)
