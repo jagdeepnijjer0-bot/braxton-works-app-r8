@@ -17,7 +17,7 @@ const TIMEOUT_MS = 10_000;
 
 export default function AuthGateScreen() {
   const router = useRouter();
-  const { inquiry, addJob, pushToken, setPushToken, setIsAuthenticated } = useApp();
+  const { inquiry, addJob, pushToken, setPushToken, setIsAuthenticated, setGuestMode } = useApp();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -114,6 +114,7 @@ export default function AuthGateScreen() {
     // partially-cleared token that later causes "Invalid Refresh Token" errors.
     await supabase.auth.signOut({ scope: "local" }).catch(() => {});
     setIsAuthenticated(false);
+    setGuestMode(true);
 
     const jobId = await submitEnquiry();
     setLoading(false);

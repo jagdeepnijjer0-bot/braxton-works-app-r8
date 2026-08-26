@@ -82,7 +82,7 @@ class ErrorBoundary extends Component<
 // so the user sees the proper branded splash (not a frozen spinner) during boot.
 function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { setPushToken, setJobs, setIsAuthenticated } = useApp();
+  const { setPushToken, setJobs, setIsAuthenticated, setGuestMode } = useApp();
 
   const fetchUserJobs = async (userId: string) => {
     try {
@@ -238,6 +238,8 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
       if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user?.id) {
+        // Clear guest mode — signed-in users are not guests.
+        setGuestMode(false);
         // Replace jobs with this user's own Supabase jobs — never merge with guest/stale jobs.
         fetchUserJobs(session.user.id);
       } else if (event === "SIGNED_OUT") {

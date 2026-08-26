@@ -15,7 +15,7 @@ type Tab = "active" | "completed";
 
 export default function JobsScreen() {
   const router = useRouter();
-  const { jobs, updateJobStatus, isAuthenticated } = useApp();
+  const { jobs, updateJobStatus, isAuthenticated, guestMode } = useApp();
   const [tab, setTab] = useState<Tab>("active");
 
   // jobsRef gives the realtime handler access to the current jobs list without
@@ -24,28 +24,34 @@ export default function JobsScreen() {
   const jobsRef = useRef(jobs);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
 
-  // Stable channel ref — hold the active Supabase channel across renders.
+  // channelRef holds the active Supabase channel.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  // Incrementing sequence so each new channel gets a unique name.
-  // supabase.channel() caches by name in its internal registry; a fixed name
-  // may return the same already-subscribed object before the prior removeChannel
-  // WebSocket leave is acknowledged. A unique name guarantees a fresh object.
+  // Unique sequence per channel creation — prevents supabase.channel() from
+  // returning a cached already-subscribed object with the same name.
   const channelSeqRef = useRef(0);
+  // subscribedRef is the ultimate guard: set to true immediately before
+  // channel.subscribe() and back to false after removeChannel. If the effect
+  // fires twice before teardown (React Strict Mode / Suspense reconnect), the
+  // second run bails rather than calling .on() on an already-subscribed channel.
+  const subscribedRef = useRef(false);
 
   useEffect(() => {
-    // Tear down any existing channel before creating a new one.
-    // This runs on mount and whenever isAuthenticated changes.
+    // Bail if a channel is already subscribed — this run is a duplicate
+    // caused by React double-invoking passive effects. Attaching .on() to an
+    // already-subscribed channel throws; this guard makes that impossible.
+    if (subscribedRef.current) return;
+
+    // Tear down any stale channel from a prior auth transition.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    // Guests have no SELECT RLS on jobs — realtime events won't arrive for them anyway.
+    // Guests have no SELECT RLS on jobs — realtime events won't arrive for them.
     if (!isAuthenticated) return;
 
-    // Unique name per subscription — never hits a cached subscribed channel object.
-    // Dependency is [isAuthenticated] only, so this never re-runs on a jobs update.
-    // RLS filters events server-side to this user's own rows.
+    // Unique name per subscription so supabase.channel() never returns a cached,
+    // already-subscribed object from its internal registry.
     channelSeqRef.current += 1;
     const channel = supabase.channel(`jobs-rt-${channelSeqRef.current}`);
 
@@ -67,10 +73,12 @@ export default function JobsScreen() {
       }
     );
 
+    subscribedRef.current = true;
     channel.subscribe();
     channelRef.current = channel;
 
     return () => {
+      subscribedRef.current = false;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -104,7 +112,7 @@ export default function JobsScreen() {
         ))}
       </View>
 
-      {!isAuthenticated && jobs.length > 0 && (
+      {guestMode && !isAuthenticated && jobs.length > 0 && (
         <View style={styles.guestBanner}>
           <Text style={styles.guestBannerText}>
             Guest enquiries are only saved on this device for 24 hours.{" "}

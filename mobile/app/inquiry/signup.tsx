@@ -29,7 +29,7 @@ const EMAIL_REDIRECT = "tradenest://auth/callback";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { inquiry, addJob, setJobs, setIsAuthenticated, isAuthenticated } = useApp();
+  const { inquiry, addJob, setJobs, setIsAuthenticated, setGuestMode, isAuthenticated } = useApp();
 
   const [name,             setName]             = useState(inquiry.name);
   const [email,            setEmail]            = useState("");
@@ -201,6 +201,8 @@ export default function SignUpScreen() {
       // stale jobs and show only the new enquiry. If they were already a guest,
       // addJob() already appended — don't overwrite the list.
       if (wasAuthenticated && submittedJob) setJobs([submittedJob as any]);
+      // Signing up exits guest mode — this user is registered, just not confirmed yet.
+      setGuestMode(false);
       setEmailSent(true);
     } else {
       setIsAuthenticated(true);

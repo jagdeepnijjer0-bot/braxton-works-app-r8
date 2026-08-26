@@ -50,6 +50,10 @@ interface AppContextValue {
   updateJobStatus:    (jobId: string, status: JobStatus, update: JobUpdate) => void;
   isAuthenticated:    boolean;
   setIsAuthenticated: (v: boolean) => void;
+  // True only when the user explicitly chose "Continue as Guest".
+  // False for anyone who has signed in or started sign-up (even email-pending).
+  guestMode:          boolean;
+  setGuestMode:       (v: boolean) => void;
   pushToken:          string | null;
   setPushToken:       (t: string | null) => void;
 }
@@ -73,6 +77,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [inquiry, setInquiry]                 = useState<InquiryData>(blank);
   const [jobs, setJobs]                       = useState<Job[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [guestMode, setGuestMode]             = useState(false);
   const [pushToken, setPushToken]             = useState<string | null>(null);
 
   const resetInquiry = () => setInquiry(blank);
@@ -95,6 +100,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         inquiry, setInquiry, resetInquiry,
         jobs, addJob, setJobs, updateJobStatus,
         isAuthenticated, setIsAuthenticated,
+        guestMode, setGuestMode,
         pushToken, setPushToken,
       }}
     >
