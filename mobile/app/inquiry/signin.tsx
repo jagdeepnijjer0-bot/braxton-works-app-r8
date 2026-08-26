@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { useState, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { persistGuestJob } from "@/lib/guest-jobs";
+import { addPendingClaimId } from "@/lib/guest-jobs";
 import { registerPushToken } from "@/lib/notifications";
 
 const REMEMBER_KEY  = "remembered_contact";
@@ -25,7 +25,7 @@ const TIMEOUT_MS = 10_000;
 export default function SignInScreen() {
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const { inquiry, addJob, setIsAuthenticated, pushToken, setPushToken } = useApp();
+  const { inquiry, setJobs, setIsAuthenticated, pushToken, setPushToken } = useApp();
 
   const [email,      setEmail]      = useState("");
   const [password,   setPassword]   = useState("");
@@ -105,19 +105,16 @@ export default function SignInScreen() {
           return;
         }
 
-        const newJob = {
-          id:          jobId,
-          type:        inquiry.type ?? "enquiry",
-          category:    inquiry.category,
-          description: inquiry.description,
-          address:     inquiry.address,
-          status:      "Enquiry Received",
-          date:        new Date().toISOString(),
-          photos:      inquiry.photos,
-          updates:     [],
-        };
-        persistGuestJob(newJob); // fire-and-forget
-        addJob(newJob);
+        // The job was inserted with user_id set — it is NOT a guest job and must
+        // NOT be stored in guest-job storage. Clear any stale guest/other-user
+        // jobs from context now; onAuthStateChange SIGNED_IN will fire shortly
+        // and replace jobs with this user's own Supabase list.
+        setJobs([]);
+
+        // Track the newly-inserted job so the in-flow "claim" path works if
+        // the user later re-authenticates via email confirmation (edge case).
+        // For a direct sign-in the job already has user_id so claiming is a no-op.
+        addPendingClaimId(jobId).catch(() => {});
 
         // ── Fire-and-forget: welcome message + push token ──────────────────
         const sendAfterwork = async () => {

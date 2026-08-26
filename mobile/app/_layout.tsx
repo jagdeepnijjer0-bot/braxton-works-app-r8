@@ -238,9 +238,14 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
       if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user?.id) {
+        // Replace jobs with this user's own Supabase jobs — never merge with guest/stale jobs.
         fetchUserJobs(session.user.id);
       } else if (event === "SIGNED_OUT") {
-        setJobs([]);
+        // Clear authenticated jobs immediately, then restore any recent guest jobs.
+        // A signed-in account's jobs must not appear after sign-out.
+        loadRecentGuestJobs()
+          .then((recent) => setJobs(recent.length > 0 ? (recent as Job[]) : []))
+          .catch(() => setJobs([]));
       }
     });
 

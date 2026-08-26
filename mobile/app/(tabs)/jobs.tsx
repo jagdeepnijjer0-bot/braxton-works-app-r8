@@ -26,6 +26,11 @@ export default function JobsScreen() {
 
   // Stable channel ref — hold the active Supabase channel across renders.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Incrementing sequence so each new channel gets a unique name.
+  // supabase.channel() caches by name in its internal registry; a fixed name
+  // may return the same already-subscribed object before the prior removeChannel
+  // WebSocket leave is acknowledged. A unique name guarantees a fresh object.
+  const channelSeqRef = useRef(0);
 
   useEffect(() => {
     // Tear down any existing channel before creating a new one.
@@ -38,10 +43,11 @@ export default function JobsScreen() {
     // Guests have no SELECT RLS on jobs — realtime events won't arrive for them anyway.
     if (!isAuthenticated) return;
 
-    // Stable channel name — does NOT depend on job IDs, so receiving a realtime
-    // update (which changes jobs state) never triggers a re-subscribe.
+    // Unique name per subscription — never hits a cached subscribed channel object.
+    // Dependency is [isAuthenticated] only, so this never re-runs on a jobs update.
     // RLS filters events server-side to this user's own rows.
-    const channel = supabase.channel("jobs-realtime");
+    channelSeqRef.current += 1;
+    const channel = supabase.channel(`jobs-rt-${channelSeqRef.current}`);
 
     channel.on(
       "postgres_changes",
