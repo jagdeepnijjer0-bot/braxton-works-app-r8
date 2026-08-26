@@ -13,6 +13,11 @@ import type { JobUpdate } from "@/lib/context";
 
 type Tab = "active" | "completed";
 
+// Module-level counter — persists across component remounts (unlike a useRef).
+// Both old and new instances increment from the same counter, so they never
+// produce the same channel name and supabase.channel() always returns a fresh object.
+let _jobsChannelSeq = 0;
+
 export default function JobsScreen() {
   const router = useRouter();
   const { jobs, updateJobStatus, isAuthenticated, guestMode } = useApp();
@@ -24,36 +29,38 @@ export default function JobsScreen() {
   const jobsRef = useRef(jobs);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
 
-  // channelRef holds the active Supabase channel.
+  // channelRef holds this instance's active Supabase channel.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  // Unique sequence per channel creation — prevents supabase.channel() from
-  // returning a cached already-subscribed object with the same name.
-  const channelSeqRef = useRef(0);
-  // subscribedRef is the ultimate guard: set to true immediately before
-  // channel.subscribe() and back to false after removeChannel. If the effect
-  // fires twice before teardown (React Strict Mode / Suspense reconnect), the
-  // second run bails rather than calling .on() on an already-subscribed channel.
-  const subscribedRef = useRef(false);
 
   useEffect(() => {
-    // Bail if a channel is already subscribed — this run is a duplicate
-    // caused by React double-invoking passive effects. Attaching .on() to an
-    // already-subscribed channel throws; this guard makes that impossible.
-    if (subscribedRef.current) return;
+    if (!isAuthenticated) {
+      // Clean up if the user signed out while on this screen.
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
 
-    // Tear down any stale channel from a prior auth transition.
+    // Guard against a duplicate active subscription at the Supabase level.
+    // Covers full remounts (new component instance, fresh refs) where the previous
+    // instance's channel is still alive. supabase.getChannels() is the global truth.
+    const alreadyActive = supabase.getChannels().some(
+      (c) => c.topic.startsWith("realtime:jobs-rt")
+    );
+    if (alreadyActive) return;
+
+    // Tear down any stale channel this instance created before this effect run.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    // Guests have no SELECT RLS on jobs — realtime events won't arrive for them.
-    if (!isAuthenticated) return;
-
-    // Unique name per subscription so supabase.channel() never returns a cached,
-    // already-subscribed object from its internal registry.
-    channelSeqRef.current += 1;
-    const channel = supabase.channel(`jobs-rt-${channelSeqRef.current}`);
+    // Module-level counter ensures a unique channel name even across remounts —
+    // component-level refs reset to 0 on each mount, so two instances would both
+    // produce "jobs-rt-1" and supabase.channel() would return the same cached object.
+    _jobsChannelSeq += 1;
+    const channel = supabase.channel(`jobs-rt-${_jobsChannelSeq}`);
 
     channel.on(
       "postgres_changes",
@@ -73,12 +80,10 @@ export default function JobsScreen() {
       }
     );
 
-    subscribedRef.current = true;
     channel.subscribe();
     channelRef.current = channel;
 
     return () => {
-      subscribedRef.current = false;
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
