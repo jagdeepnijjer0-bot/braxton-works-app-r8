@@ -346,7 +346,7 @@ export default function SignUpScreen() {
           </View>
           <Text style={styles.consentText}>
             I agree to the{" "}
-            <Text style={styles.link} onPress={() => Linking.openURL("https://tradenestapp.co.uk/terms")}>
+            <Text style={styles.link} onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/Terms-of-Service-3cbd7cc4117a80868347e39faab800bb")}>
               Terms of Service
             </Text>
           </Text>
@@ -388,7 +388,7 @@ export default function SignUpScreen() {
 
         <Text style={styles.privacyNote}>
           By creating an account you acknowledge our{" "}
-          <Text style={styles.link} onPress={() => Linking.openURL("https://tradenestapp.co.uk/privacy")}>
+          <Text style={styles.link} onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/TradeNest-Privacy-Policy-2bf67b051eac403198b3beab2c1d9683")}>
             Privacy Policy
           </Text>
           .

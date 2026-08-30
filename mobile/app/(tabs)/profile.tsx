@@ -167,11 +167,11 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.legalLinks}>
-          <TouchableOpacity onPress={() => Linking.openURL("https://tradenestapp.co.uk/privacy")} activeOpacity={0.75}>
+          <TouchableOpacity onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/TradeNest-Privacy-Policy-2bf67b051eac403198b3beab2c1d9683")} activeOpacity={0.75}>
             <Text style={styles.legalLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.legalSep}>·</Text>
-          <TouchableOpacity onPress={() => Linking.openURL("https://tradenestapp.co.uk/terms")} activeOpacity={0.75}>
+          <TouchableOpacity onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/Terms-of-Service-3cbd7cc4117a80868347e39faab800bb")} activeOpacity={0.75}>
             <Text style={styles.legalLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
@@ -272,11 +272,11 @@ export default function ProfileScreen() {
 
         {/* Legal links */}
         <View style={[styles.legalLinks, { marginBottom: 14 }]}>
-          <TouchableOpacity onPress={() => Linking.openURL("https://tradenestapp.co.uk/privacy")} activeOpacity={0.75}>
+          <TouchableOpacity onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/TradeNest-Privacy-Policy-2bf67b051eac403198b3beab2c1d9683")} activeOpacity={0.75}>
             <Text style={styles.legalLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.legalSep}>·</Text>
-          <TouchableOpacity onPress={() => Linking.openURL("https://tradenestapp.co.uk/terms")} activeOpacity={0.75}>
+          <TouchableOpacity onPress={() => Linking.openURL("https://sassy-cent-19c.notion.site/Terms-of-Service-3cbd7cc4117a80868347e39faab800bb")} activeOpacity={0.75}>
             <Text style={styles.legalLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
