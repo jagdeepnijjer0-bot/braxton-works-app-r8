@@ -29,7 +29,7 @@ const EMAIL_REDIRECT = "tradenest://auth/callback";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { inquiry, addJob, setJobs, setIsAuthenticated, setGuestMode, isAuthenticated } = useApp();
+  const { inquiry, addJob, setJobs, setIsAuthenticated, setGuestMode, setEmailPendingConfirmation, isAuthenticated } = useApp();
 
   const [name,             setName]             = useState(inquiry.name);
   const [email,            setEmail]            = useState("");
@@ -70,7 +70,13 @@ export default function SignUpScreen() {
     // stale authenticated jobs from context once the new account is created.
     const wasAuthenticated = isAuthenticated;
 
+    // Only insert a job when this screen was reached from the enquiry flow.
+    // If the user tapped "Create Account" from the guest banner (post-resetInquiry),
+    // inquiry.category is empty — no job should be created.
+    const hasEnquiry = !!inquiry.category;
+
     let needsConfirmation = true;
+    let signupSucceeded   = false;
     let jobId: string | null = null;
     let submittedJob: Record<string, unknown> | null = null;
 
@@ -94,61 +100,64 @@ export default function SignUpScreen() {
         return;
       }
 
+      signupSucceeded = true;
       const authData = result.data;
       needsConfirmation = !authData.session;
       const userId = authData.session?.user?.id ?? null;
 
-      // ── Job insert ───────────────────────────────────────────────────────
-      jobId = crypto.randomUUID();
-      try {
-        const { error: jobError } = await withTimeout(
-          supabase.from("jobs").insert({
-            id:          jobId,
-            user_id:     userId,
-            type:        inquiry.type ?? "enquiry",
-            category:    inquiry.category,
-            description: inquiry.description,
-            address:     inquiry.address,
-            status:      "Enquiry Received",
-            timing:      inquiry.timing,
-            chosen_date: inquiry.chosenDate,
-            guest_name:  name            || null,
-            guest_phone: inquiry.phone   || null,
-            guest_contact_preference: inquiry.contactPreference || null,
-            source:      "app",
-          }),
-          TIMEOUT_MS
-        );
-        if (jobError) console.error("Job insert error (signup):", JSON.stringify(jobError));
-      } catch (e: any) {
-        console.error("Job insert timed out (signup):", e);
+      // ── Job insert — only when arriving from the enquiry flow ────────────
+      if (hasEnquiry) {
+        jobId = crypto.randomUUID();
+        try {
+          const { error: jobError } = await withTimeout(
+            supabase.from("jobs").insert({
+              id:          jobId,
+              user_id:     userId,
+              type:        inquiry.type ?? "enquiry",
+              category:    inquiry.category,
+              description: inquiry.description,
+              address:     inquiry.address,
+              status:      "Enquiry Received",
+              timing:      inquiry.timing,
+              chosen_date: inquiry.chosenDate,
+              guest_name:  name            || null,
+              guest_phone: inquiry.phone   || null,
+              guest_contact_preference: inquiry.contactPreference || null,
+              source:      "app",
+            }),
+            TIMEOUT_MS
+          );
+          if (jobError) console.error("Job insert error (signup):", JSON.stringify(jobError));
+        } catch (e: any) {
+          console.error("Job insert timed out (signup):", e);
+        }
+
+        const newJob = {
+          id:          jobId,
+          type:        inquiry.type ?? "enquiry",
+          category:    inquiry.category,
+          description: inquiry.description,
+          address:     inquiry.address,
+          status:      "Enquiry Received",
+          date:        new Date().toISOString(),
+          photos:      inquiry.photos,
+          updates:     [],
+        };
+        submittedJob = newJob;
+        persistGuestJob(newJob); // fire-and-forget
+        addJob(newJob);
+
+        // Track for claim on email confirmation — only jobs from this sign-up flow.
+        if (userId === null) addPendingClaimId(jobId).catch(() => {});
+
+        // Fire-and-forget: welcome message
+        supabase.from("messages")
+          .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
+          .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
+          .catch(() => {});
       }
 
-      const newJob = {
-        id:          jobId,
-        type:        inquiry.type ?? "enquiry",
-        category:    inquiry.category,
-        description: inquiry.description,
-        address:     inquiry.address,
-        status:      "Enquiry Received",
-        date:        new Date().toISOString(),
-        photos:      inquiry.photos,
-        updates:     [],
-      };
-      submittedJob = newJob;
-      persistGuestJob(newJob); // fire-and-forget
-      addJob(newJob);
-
-      // Track this job for claim on email confirmation — scoped to THIS sign-up flow only.
-      // Only needed when user_id is null (email not yet confirmed / auto-confirm off).
-      if (userId === null) addPendingClaimId(jobId).catch(() => {});
-
-      // ── Fire-and-forget: welcome message + marketing consent ─────────────
-      supabase.from("messages")
-        .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
-        .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
-        .catch(() => {});
-
+      // ── Marketing consent + remember me ─────────────────────────────────
       if (userId) {
         supabase.from("user_profiles").upsert(
           {
@@ -161,7 +170,6 @@ export default function SignUpScreen() {
          .catch(() => {});
       }
 
-      // Save remembered contact details if opted in
       if (rememberMe) {
         Promise.all([
           AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ name, address: inquiry.address, phone: inquiry.phone })),
@@ -176,7 +184,6 @@ export default function SignUpScreen() {
 
     } catch (e: any) {
       // Surface the real error — do NOT replace with a generic string.
-      // status and name identify Supabase AuthErrors vs. network errors vs. JS exceptions.
       const msg = e?.message ?? String(e);
       const detail = [
         e?.name   ? `[${e.name}]`      : null,
@@ -193,16 +200,16 @@ export default function SignUpScreen() {
       setLoading(false);
     }
 
-    // Only navigate / show confirmation if sign-up succeeded (jobId was set)
-    if (!jobId) return;
+    if (!signupSucceeded) return;
 
     if (needsConfirmation) {
       // If the user was previously authenticated (switching accounts), clear their
       // stale jobs and show only the new enquiry. If they were already a guest,
       // addJob() already appended — don't overwrite the list.
       if (wasAuthenticated && submittedJob) setJobs([submittedJob as any]);
-      // Signing up exits guest mode — this user is registered, just not confirmed yet.
+      // Registered but not yet confirmed — exit guest mode and flag the pending state.
       setGuestMode(false);
+      setEmailPendingConfirmation(true);
       setEmailSent(true);
     } else {
       setIsAuthenticated(true);

@@ -20,7 +20,7 @@ let _jobsChannelSeq = 0;
 
 export default function JobsScreen() {
   const router = useRouter();
-  const { jobs, updateJobStatus, isAuthenticated, guestMode } = useApp();
+  const { jobs, updateJobStatus, isAuthenticated, guestMode, emailPendingConfirmation } = useApp();
   const [tab, setTab] = useState<Tab>("active");
 
   // jobsRef gives the realtime handler access to the current jobs list without
@@ -117,6 +117,13 @@ export default function JobsScreen() {
         ))}
       </View>
 
+      {emailPendingConfirmation && !isAuthenticated && (
+        <View style={styles.confirmBanner}>
+          <Text style={styles.confirmBannerText}>
+            Check your email and tap the confirmation link to activate your account.
+          </Text>
+        </View>
+      )}
       {guestMode && !isAuthenticated && jobs.length > 0 && (
         <View style={styles.guestBanner}>
           <Text style={styles.guestBannerText}>
@@ -225,6 +232,8 @@ const styles = StyleSheet.create({
   tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   tabText:       { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 13 },
   tabTextActive: { color: colors.navy },
+  confirmBanner:     { marginHorizontal: 22, marginBottom: 14, backgroundColor: "rgba(16,185,129,0.08)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(16,185,129,0.2)" },
+  confirmBannerText: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: "400", lineHeight: 19 },
   guestBanner:     { marginHorizontal: 22, marginBottom: 14, backgroundColor: "rgba(245,158,11,0.08)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(245,158,11,0.18)" },
   guestBannerText: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "400", lineHeight: 19 },
   guestBannerLink: { color: colors.amber, fontWeight: "600" },

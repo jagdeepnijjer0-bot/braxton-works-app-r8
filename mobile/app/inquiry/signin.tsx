@@ -105,16 +105,29 @@ export default function SignInScreen() {
           return;
         }
 
-        // The job was inserted with user_id set — it is NOT a guest job and must
-        // NOT be stored in guest-job storage. Clear any stale guest/other-user
-        // jobs from context now; onAuthStateChange SIGNED_IN will fire shortly
-        // and replace jobs with this user's own Supabase list.
-        setJobs([]);
-
-        // Track the newly-inserted job so the in-flow "claim" path works if
-        // the user later re-authenticates via email confirmation (edge case).
-        // For a direct sign-in the job already has user_id so claiming is a no-op.
-        addPendingClaimId(jobId).catch(() => {});
+        // onAuthStateChange(SIGNED_IN) fires before signInWithPassword returns,
+        // so fetchUserJobs may have already run (and returned empty — the INSERT
+        // wasn't committed yet). Re-fetch now, after the INSERT, so the job appears.
+        try {
+          const { data: freshJobs } = await supabase
+            .from("jobs")
+            .select("id, type, category, description, address, status, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+          if (freshJobs) {
+            setJobs(freshJobs.map((row) => ({
+              id:          row.id,
+              type:        row.type,
+              category:    row.category,
+              description: row.description,
+              address:     row.address,
+              status:      row.status,
+              date:        row.created_at,
+              photos:      [],
+              updates:     [],
+            })) as any);
+          }
+        } catch { /* non-fatal — job is in Supabase, next boot will restore it */ }
 
         // ── Fire-and-forget: welcome message + push token ──────────────────
         const sendAfterwork = async () => {

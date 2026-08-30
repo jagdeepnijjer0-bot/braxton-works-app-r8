@@ -82,7 +82,7 @@ class ErrorBoundary extends Component<
 // so the user sees the proper branded splash (not a frozen spinner) during boot.
 function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { setPushToken, setJobs, setIsAuthenticated, setGuestMode } = useApp();
+  const { setPushToken, setJobs, setIsAuthenticated, setGuestMode, setEmailPendingConfirmation } = useApp();
 
   const fetchUserJobs = async (userId: string) => {
     try {
@@ -148,6 +148,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     if (!session) return;
 
     setIsAuthenticated(true);
+    setEmailPendingConfirmation(false);
 
     if (isRecovery) {
       // Password recovery — send the user to set a new password.

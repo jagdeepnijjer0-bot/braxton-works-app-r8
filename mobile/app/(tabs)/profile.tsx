@@ -20,7 +20,7 @@ const TIMEOUT_MS = 10_000;
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { isAuthenticated, setIsAuthenticated, jobs } = useApp();
+  const { isAuthenticated, setIsAuthenticated, jobs, emailPendingConfirmation } = useApp();
   const [profile,        setProfile]        = useState<UserProfile | null>(null);
   const [consentLoading, setConsentLoading] = useState(false);
 
@@ -132,6 +132,30 @@ export default function ProfileScreen() {
       },
     ]);
   };
+
+  // ── Email confirmation pending ────────────────────────────────────────────
+  if (!isAuthenticated && emailPendingConfirmation) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Profile</Text>
+        </View>
+
+        <View style={styles.signInCard}>
+          <View style={styles.avatarCircle}>
+            <User color="rgba(255,255,255,0.5)" size={36} strokeWidth={1.8} />
+          </View>
+          <Text style={styles.signInHeading}>Check your{"\n"}email</Text>
+          <Text style={styles.signInSub}>
+            We sent a confirmation link to your email address. Tap it to activate your account — your enquiry is already submitted.
+          </Text>
+          <TouchableOpacity onPress={() => router.replace("/(tabs)/")} activeOpacity={0.75}>
+            <Text style={styles.browseLink}>Continue browsing</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ── Signed-out state ─────────────────────────────────────────────────────
   if (!isAuthenticated) {
