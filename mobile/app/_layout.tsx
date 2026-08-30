@@ -10,7 +10,7 @@ import { useEffect, useCallback, Component } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import { loadAndClearPendingClaimIds, loadRecentGuestJobs } from "@/lib/guest-jobs";
+import { loadAndClearPendingJobData, loadRecentGuestJobs } from "@/lib/guest-jobs";
 import type { ReactNode } from "react";
 
 // Keep the native splash screen visible until we explicitly hide it.
@@ -157,22 +157,34 @@ function AppBootstrap({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Email confirmation — claim only jobs from the current sign-up flow
-    // (not all historical device guest jobs).
+    // Email confirmation — insert the pending job (saved locally during signup)
+    // with the now-confirmed user_id. Inserting with the correct user_id avoids
+    // the RLS issue where UPDATE on user_id=null rows is blocked.
     try {
-      const ids = await loadAndClearPendingClaimIds();
-      if (ids.length > 0) {
-        await supabase
-          .from("jobs")
-          .update({ user_id: session.user.id })
-          .in("id", ids)
-          .is("user_id", null);
+      const pendingJob = await loadAndClearPendingJobData();
+      if (pendingJob) {
+        const { error: insertErr } = await supabase.from("jobs").insert({
+          ...pendingJob,
+          user_id: session.user.id,
+        });
+        if (insertErr) {
+          console.warn("[auth-callback] pending job insert failed:", insertErr.message);
+        } else {
+          // Welcome message for the newly-inserted job.
+          supabase.from("messages")
+            .insert({
+              job_id: pendingJob.id,
+              body:   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.",
+              sender: "contractor",
+            })
+            .catch(() => {});
+        }
       }
     } catch (e) {
-      console.warn("[auth-callback] guest job claim failed:", e);
+      console.warn("[auth-callback] pending job insert failed:", e);
     }
 
-    fetchUserJobs(session.user.id);
+    await fetchUserJobs(session.user.id);
 
     router.replace("/(tabs)/profile");
   }, []);
@@ -208,8 +220,18 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         try {
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) {
-            console.warn("[boot] stale session detected:", error.message);
-            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+            // Only sign out on auth-specific errors that indicate an unrecoverable
+            // session (e.g. invalid refresh token stored locally). Do NOT sign out
+            // on network/timeout errors — that would clear a valid session just
+            // because the device had no connectivity at launch.
+            const msg = error.message?.toLowerCase() ?? "";
+            const isAuthError = msg.includes("refresh token") || msg.includes("invalid") || msg.includes("expired");
+            if (isAuthError) {
+              console.warn("[boot] unrecoverable session, clearing:", error.message);
+              await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+            } else {
+              console.warn("[boot] session check error (keeping session):", error.message);
+            }
           } else if (session) {
             setIsAuthenticated(true);
             // Fetch authenticated user's jobs from Supabase on boot.

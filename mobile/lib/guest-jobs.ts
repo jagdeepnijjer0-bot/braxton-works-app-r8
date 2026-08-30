@@ -64,6 +64,28 @@ export async function loadRecentGuestJobs(): Promise<Record<string, unknown>[]> 
   }
 }
 
+// Stores the full job payload for jobs created during an email-confirmation
+// signup flow. The job is NOT inserted into Supabase until the email is
+// confirmed (to avoid RLS issues with user_id = null). handleAuthCallback
+// reads this, inserts with the confirmed user_id, then clears the entry.
+const PENDING_JOB_DATA_KEY = "pending_job_insert_data";
+
+export async function savePendingJobData(job: Record<string, unknown>): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PENDING_JOB_DATA_KEY, JSON.stringify(job));
+  } catch { /* non-fatal */ }
+}
+
+export async function loadAndClearPendingJobData(): Promise<Record<string, unknown> | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_JOB_DATA_KEY);
+    await AsyncStorage.removeItem(PENDING_JOB_DATA_KEY).catch(() => {});
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 const PENDING_CLAIM_KEY = "pending_claim_job_ids";
 
 export async function addPendingClaimId(jobId: string): Promise<void> {

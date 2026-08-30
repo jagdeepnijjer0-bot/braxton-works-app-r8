@@ -11,7 +11,7 @@ import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { useState, useRef, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { persistGuestJob, addPendingClaimId } from "@/lib/guest-jobs";
+import { persistGuestJob, savePendingJobData } from "@/lib/guest-jobs";
 
 const REMEMBER_KEY  = "remembered_contact";
 const TIMEOUT_MS    = 15_000;
@@ -108,29 +108,7 @@ export default function SignUpScreen() {
       // ── Job insert — only when arriving from the enquiry flow ────────────
       if (hasEnquiry) {
         jobId = crypto.randomUUID();
-        try {
-          const { error: jobError } = await withTimeout(
-            supabase.from("jobs").insert({
-              id:          jobId,
-              user_id:     userId,
-              type:        inquiry.type ?? "enquiry",
-              category:    inquiry.category,
-              description: inquiry.description,
-              address:     inquiry.address,
-              status:      "Enquiry Received",
-              timing:      inquiry.timing,
-              chosen_date: inquiry.chosenDate,
-              guest_name:  name            || null,
-              guest_phone: inquiry.phone   || null,
-              guest_contact_preference: inquiry.contactPreference || null,
-              source:      "app",
-            }),
-            TIMEOUT_MS
-          );
-          if (jobError) console.error("Job insert error (signup):", JSON.stringify(jobError));
-        } catch (e: any) {
-          console.error("Job insert timed out (signup):", e);
-        }
+        const now = new Date().toISOString();
 
         const newJob = {
           id:          jobId,
@@ -139,22 +117,68 @@ export default function SignUpScreen() {
           description: inquiry.description,
           address:     inquiry.address,
           status:      "Enquiry Received",
-          date:        new Date().toISOString(),
+          date:        now,
           photos:      inquiry.photos,
           updates:     [],
         };
         submittedJob = newJob;
-        persistGuestJob(newJob); // fire-and-forget
-        addJob(newJob);
 
-        // Track for claim on email confirmation — only jobs from this sign-up flow.
-        if (userId === null) addPendingClaimId(jobId).catch(() => {});
+        if (needsConfirmation) {
+          // Email confirmation required — don't insert into Supabase yet.
+          // Inserting with user_id=null and then trying to UPDATE it after
+          // confirmation is blocked by RLS (user_id IS NULL ≠ auth.uid()).
+          // Instead, save the full job payload locally; handleAuthCallback
+          // will INSERT it with the confirmed user_id after the email link is tapped.
+          savePendingJobData({
+            id:          jobId,
+            type:        inquiry.type ?? "enquiry",
+            category:    inquiry.category,
+            description: inquiry.description,
+            address:     inquiry.address,
+            status:      "Enquiry Received",
+            timing:      inquiry.timing,
+            chosen_date: inquiry.chosenDate,
+            guest_name:  name            || null,
+            guest_phone: inquiry.phone   || null,
+            guest_contact_preference: inquiry.contactPreference || null,
+            source:      "app",
+            created_at:  now,
+          }).catch(() => {});
+        } else {
+          // Email confirmed immediately (or auto-confirm is on) — insert now with user_id.
+          try {
+            const { error: jobError } = await withTimeout(
+              supabase.from("jobs").insert({
+                id:          jobId,
+                user_id:     userId,
+                type:        inquiry.type ?? "enquiry",
+                category:    inquiry.category,
+                description: inquiry.description,
+                address:     inquiry.address,
+                status:      "Enquiry Received",
+                timing:      inquiry.timing,
+                chosen_date: inquiry.chosenDate,
+                guest_name:  name            || null,
+                guest_phone: inquiry.phone   || null,
+                guest_contact_preference: inquiry.contactPreference || null,
+                source:      "app",
+              }),
+              TIMEOUT_MS
+            );
+            if (jobError) console.error("Job insert error (signup):", JSON.stringify(jobError));
+          } catch (e: any) {
+            console.error("Job insert timed out (signup):", e);
+          }
 
-        // Fire-and-forget: welcome message
-        supabase.from("messages")
-          .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
-          .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
-          .catch(() => {});
+          // Welcome message only when job is in Supabase.
+          supabase.from("messages")
+            .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
+            .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })
+            .catch(() => {});
+        }
+
+        persistGuestJob(newJob); // local persistence for cross-session restore
+        addJob(newJob);          // immediate UI display
       }
 
       // ── Marketing consent + remember me ─────────────────────────────────
