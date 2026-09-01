@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useState, useRef, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { persistGuestJob, savePendingJobData } from "@/lib/guest-jobs";
+import { uploadJobPhotos } from "@/lib/photo-upload";
 
 const REMEMBER_KEY  = "remembered_contact";
 const TIMEOUT_MS    = 15_000;
@@ -143,6 +144,9 @@ export default function SignUpScreen() {
             guest_contact_preference: inquiry.contactPreference || null,
             source:      "app",
             created_at:  now,
+            // Local photo URIs — uploaded to Storage in handleAuthCallback after
+            // email confirmation, once we have the confirmed user_id.
+            _photo_uris: inquiry.photos,
           }).catch(() => {});
         } else {
           // Email confirmed immediately (or auto-confirm is on) — insert now with user_id.
@@ -170,7 +174,10 @@ export default function SignUpScreen() {
             console.error("Job insert timed out (signup):", e);
           }
 
-          // Welcome message only when job is in Supabase.
+          // Upload photos + send welcome message (both fire-and-forget).
+          if (inquiry.photos.length > 0) {
+            uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`).catch(() => {});
+          }
           supabase.from("messages")
             .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
             .then(({ error: e }) => { if (e) console.warn("Welcome msg error:", e.message); })

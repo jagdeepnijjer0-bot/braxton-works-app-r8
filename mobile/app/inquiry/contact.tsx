@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
 import { persistGuestJob } from "@/lib/guest-jobs";
+import { uploadJobPhotos } from "@/lib/photo-upload";
 
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
@@ -139,9 +140,13 @@ export default function ContactScreen() {
           }
         } catch { /* non-fatal */ }
 
-        // Fire-and-forget: welcome message + push token.
+        // Fire-and-forget: photo upload + welcome message + push token.
         (async () => {
           try {
+            if (inquiry.photos.length > 0) {
+              await uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`);
+            }
+
             const token = pushToken ?? await registerPushToken(jobId).then((t) => {
               if (t) setPushToken(t);
               return t;

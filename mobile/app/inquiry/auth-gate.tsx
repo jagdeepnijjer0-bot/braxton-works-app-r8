@@ -8,6 +8,7 @@ import { useApp } from "@/lib/context";
 import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
 import { registerPushToken } from "@/lib/notifications";
 import { persistGuestJob } from "@/lib/guest-jobs";
+import { uploadJobPhotos } from "@/lib/photo-upload";
 import { LogIn, UserPlus } from "lucide-react-native";
 
 const WELCOME_MSG =
@@ -71,12 +72,18 @@ export default function AuthGateScreen() {
     persistGuestJob(newJob); // fire-and-forget — AsyncStorage write
     addJob(newJob);
 
-    // ── Fire-and-forget: welcome message + push token ────────────────────
+    // ── Fire-and-forget: photo upload + welcome message + push token ─────
     // Do NOT await these — they must not block navigation to confirmation.
     // Push token registration asks for OS permission (system dialog) and
     // contacts Expo servers; either can take many seconds or never complete.
     const sendAfterwork = async () => {
       try {
+        // Upload photos under guest/ prefix — matches the anon job_photos INSERT
+        // RLS policy (job.user_id IS NULL).
+        if (inquiry.photos.length > 0) {
+          await uploadJobPhotos(jobId, inquiry.photos, `guest/${jobId}`);
+        }
+
         const token = pushToken ?? await registerPushToken(jobId).then((t) => {
           if (t) setPushToken(t);
           return t;

@@ -13,6 +13,7 @@ import { useState, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { addPendingClaimId } from "@/lib/guest-jobs";
 import { registerPushToken } from "@/lib/notifications";
+import { uploadJobPhotos } from "@/lib/photo-upload";
 
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
@@ -129,9 +130,15 @@ export default function SignInScreen() {
           }
         } catch { /* non-fatal — job is in Supabase, next boot will restore it */ }
 
-        // ── Fire-and-forget: welcome message + push token ──────────────────
+        // ── Fire-and-forget: photo upload + welcome message + push token ──
         const sendAfterwork = async () => {
           try {
+            // Upload under {userId}/ prefix — matches authenticated job_photos
+            // INSERT RLS (job.user_id = auth.uid()).
+            if (inquiry.photos.length > 0) {
+              await uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`);
+            }
+
             const token = pushToken ?? await registerPushToken(jobId).then((t) => {
               if (t) setPushToken(t);
               return t;

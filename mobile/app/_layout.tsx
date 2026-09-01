@@ -11,6 +11,7 @@ import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { loadAndClearPendingJobData, loadRecentGuestJobs } from "@/lib/guest-jobs";
+import { uploadJobPhotos } from "@/lib/photo-upload";
 import type { ReactNode } from "react";
 
 // Keep the native splash screen visible until we explicitly hide it.
@@ -163,14 +164,27 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     try {
       const pendingJob = await loadAndClearPendingJobData();
       if (pendingJob) {
+        // Strip the local-only _photo_uris field before inserting into Supabase.
+        const photoUris: string[] = Array.isArray(pendingJob._photo_uris)
+          ? (pendingJob._photo_uris as string[])
+          : [];
+        const { _photo_uris: _ignored, ...jobPayload } = pendingJob;
+
         const { error: insertErr } = await supabase.from("jobs").insert({
-          ...pendingJob,
+          ...jobPayload,
           user_id: session.user.id,
         });
         if (insertErr) {
           console.warn("[auth-callback] pending job insert failed:", insertErr.message);
         } else {
-          // Welcome message for the newly-inserted job.
+          // Upload photos and send welcome message (both fire-and-forget).
+          if (photoUris.length > 0) {
+            uploadJobPhotos(
+              pendingJob.id as string,
+              photoUris,
+              `${session.user.id}/${pendingJob.id}`
+            ).catch(() => {});
+          }
           supabase.from("messages")
             .insert({
               job_id: pendingJob.id,
