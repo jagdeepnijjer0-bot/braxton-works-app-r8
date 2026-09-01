@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Keyboard,
+  StyleSheet, SafeAreaView, Keyboard, ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Phone, MessageSquare, Mail, Check } from "lucide-react-native";
@@ -10,9 +10,16 @@ import { StepProgress } from "@/components/ui/StepProgress";
 import { Button } from "@/components/ui/Button";
 import { useState, useRef, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase, withTimeout, isSupabaseConfigured } from "@/lib/supabase";
+import { registerPushToken } from "@/lib/notifications";
+import { persistGuestJob } from "@/lib/guest-jobs";
 
 const REMEMBER_KEY  = "remembered_contact";
 const REMEMBER_FLAG = "remember_me";
+const TIMEOUT_MS    = 10_000;
+
+const WELCOME_MSG =
+  "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.";
 
 // Warn at module-load time if any icon import resolved to undefined —
 // that would cause "undefined is not a function" when React tries to render it.
@@ -28,8 +35,10 @@ const contactOpts: { id: ContactPreference; label: string; icon: typeof Phone }[
 
 export default function ContactScreen() {
   const router = useRouter();
-  const { inquiry, setInquiry } = useApp();
+  const { inquiry, setInquiry, setJobs, isAuthenticated, pushToken, setPushToken } = useApp();
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
 
   const addressRef = useRef<TextInput>(null);
   const phoneRef   = useRef<TextInput>(null);
@@ -58,21 +67,116 @@ export default function ContactScreen() {
   const canContinue = inquiry.name.trim() && inquiry.address.trim() && inquiry.phone.trim() && inquiry.contactPreference;
 
   const handleSubmit = async () => {
-    if (!canContinue) return;
+    if (!canContinue || loading) return;
     Keyboard.dismiss();
 
     if (rememberMe) {
-      await Promise.all([
+      Promise.all([
         AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ name: inquiry.name, address: inquiry.address, phone: inquiry.phone })),
         AsyncStorage.setItem(REMEMBER_FLAG, "true"),
       ]).catch(() => {});
     } else {
-      await Promise.all([
+      Promise.all([
         AsyncStorage.removeItem(REMEMBER_KEY),
         AsyncStorage.removeItem(REMEMBER_FLAG),
       ]).catch(() => {});
     }
 
+    // Already signed in — insert the job directly with their user_id, skip auth gate.
+    if (isAuthenticated) {
+      if (!isSupabaseConfigured) {
+        setError("App is not configured correctly. Please contact support.");
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id ?? null;
+        const jobId: string = crypto.randomUUID();
+
+        const { error: insertError } = await withTimeout(
+          supabase.from("jobs").insert({
+            id:          jobId,
+            user_id:     userId,
+            type:        inquiry.type ?? "enquiry",
+            category:    inquiry.category,
+            description: inquiry.description,
+            address:     inquiry.address,
+            status:      "Enquiry Received",
+            timing:      inquiry.timing,
+            chosen_date: inquiry.chosenDate,
+            source:      "app",
+          }),
+          TIMEOUT_MS
+        );
+
+        if (insertError) {
+          console.error("[contact] authenticated job insert error:", JSON.stringify(insertError));
+          setError(`Couldn't submit your enquiry: ${insertError.message}`);
+          return;
+        }
+
+        // Re-fetch so the new job appears immediately in My Jobs.
+        try {
+          const { data: freshJobs } = await supabase
+            .from("jobs")
+            .select("id, type, category, description, address, status, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+          if (freshJobs) {
+            setJobs(freshJobs.map((row) => ({
+              id:          row.id,
+              type:        row.type,
+              category:    row.category,
+              description: row.description,
+              address:     row.address,
+              status:      row.status,
+              date:        row.created_at,
+              photos:      [],
+              updates:     [],
+            })) as any);
+          }
+        } catch { /* non-fatal */ }
+
+        // Fire-and-forget: welcome message + push token.
+        (async () => {
+          try {
+            const token = pushToken ?? await registerPushToken(jobId).then((t) => {
+              if (t) setPushToken(t);
+              return t;
+            });
+            await Promise.allSettled([
+              withTimeout(
+                supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
+                TIMEOUT_MS
+              ),
+              token
+                ? withTimeout(
+                    supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+                    TIMEOUT_MS
+                  )
+                : Promise.resolve(),
+            ]);
+          } catch { /* non-fatal */ }
+        })();
+
+        router.replace("/inquiry/confirmation");
+      } catch (e: any) {
+        const msg = e?.message ?? String(e);
+        setError(
+          msg.toLowerCase().includes("timed out")
+            ? "Request timed out — check your connection and try again."
+            : `Submission error: ${msg}`
+        );
+        console.error("[contact] authenticated submit error:", e);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Not signed in — proceed to auth gate (sign in / create account / guest).
     router.push("/inquiry/auth-gate");
   };
 
@@ -187,12 +291,16 @@ export default function ContactScreen() {
           </Text>
         </TouchableOpacity>
 
+        {error && <Text style={styles.error}>{error}</Text>}
+
         <Button
-          label="Submit Enquiry"
+          label={loading ? "Submitting…" : "Submit Enquiry"}
           onPress={handleSubmit}
-          disabled={!canContinue}
+          disabled={!canContinue || loading}
           style={{ marginTop: 20 }}
         />
+
+        {loading && <ActivityIndicator color={colors.amber} style={{ marginTop: 16 }} />}
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,5 +376,13 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 19,
     flex:       1,
+  },
+  error: {
+    color:      "#EF4444",
+    fontSize:   13,
+    fontWeight: "600",
+    marginTop:  16,
+    lineHeight: 19,
+    textAlign:  "center",
   },
 });
