@@ -163,7 +163,9 @@ export default function ContactScreen() {
                   )
                 : Promise.resolve(),
             ]);
-          } catch { /* non-fatal */ }
+          } catch (e) {
+            console.error("[contact] afterwork error:", e);
+          }
         })();
 
         router.replace("/inquiry/confirmation");

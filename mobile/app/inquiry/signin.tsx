@@ -155,7 +155,9 @@ export default function SignInScreen() {
                   )
                 : Promise.resolve(),
             ]);
-          } catch { /* non-fatal */ }
+          } catch (e) {
+            console.error("[signin] sendAfterwork error:", e);
+          }
         };
         sendAfterwork(); // intentionally NOT awaited
 

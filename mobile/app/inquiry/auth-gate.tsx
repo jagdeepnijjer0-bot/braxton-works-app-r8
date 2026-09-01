@@ -100,7 +100,9 @@ export default function AuthGateScreen() {
               )
             : Promise.resolve(),
         ]);
-      } catch { /* non-fatal */ }
+      } catch (e) {
+        console.error("[auth-gate] sendAfterwork error:", e);
+      }
     };
     sendAfterwork(); // intentionally NOT awaited
 

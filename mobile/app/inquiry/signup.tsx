@@ -176,7 +176,7 @@ export default function SignUpScreen() {
 
           // Upload photos + send welcome message (both fire-and-forget).
           if (inquiry.photos.length > 0) {
-            uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`).catch(() => {});
+            uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`).catch((e) => console.error("[signup] photo upload error:", e));
           }
           supabase.from("messages")
             .insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" })
