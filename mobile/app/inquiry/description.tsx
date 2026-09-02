@@ -31,9 +31,15 @@ export default function DescriptionScreen() {
       mediaTypes: ImagePicker.MediaType.Images,
       allowsMultipleSelection: false,
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+        return;
+      }
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
     }
   };
 
@@ -45,9 +51,15 @@ export default function DescriptionScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+        return;
+      }
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
     }
   };
 
@@ -92,9 +104,9 @@ export default function DescriptionScreen() {
 
         <Text style={styles.fieldLabel}>PHOTOS (OPTIONAL)</Text>
         <View style={styles.photoGrid}>
-          {inquiry.photos.map((uri, i) => (
+          {inquiry.photos.map((photo, i) => (
             <View key={i} style={styles.photoWrap}>
-              <Image source={{ uri }} style={styles.photo} />
+              <Image source={{ uri: photo.uri }} style={styles.photo} />
               <TouchableOpacity style={styles.removeBtn} onPress={() => removePhoto(i)}>
                 <X color={colors.white} size={12} />
               </TouchableOpacity>

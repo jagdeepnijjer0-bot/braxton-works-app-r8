@@ -119,7 +119,7 @@ export default function SignUpScreen() {
           address:     inquiry.address,
           status:      "Enquiry Received",
           date:        now,
-          photos:      inquiry.photos,
+          photos:      inquiry.photos.map((p) => p.uri), // URIs only for display
           updates:     [],
         };
         submittedJob = newJob;
@@ -144,9 +144,11 @@ export default function SignUpScreen() {
             guest_contact_preference: inquiry.contactPreference || null,
             source:      "app",
             created_at:  now,
-            // Local photo URIs — uploaded to Storage in handleAuthCallback after
-            // email confirmation, once we have the confirmed user_id.
-            _photo_uris: inquiry.photos,
+            // InquiryPhoto objects (uri + base64) — uploaded to Storage in
+            // handleAuthCallback after email confirmation, once we have the
+            // confirmed user_id. base64 is needed because file:// URIs are
+            // not reliably readable after the app is backgrounded/reopened.
+            _photos: inquiry.photos,
           }).catch(() => {});
         } else {
           // Email confirmed immediately (or auto-confirm is on) — insert now with user_id.

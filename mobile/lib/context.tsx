@@ -8,11 +8,19 @@ export type ContactPreference  = "phone" | "text" | "in-app";
 // Keep internal code alias for backwards compat
 export type InquiryType = EnquiryType;
 
+// A photo captured during the enquiry flow.
+// base64 is the raw JPEG base64 string from expo-image-picker (no data URI prefix).
+// uri is the local file:// URI used for display thumbnails only.
+export interface InquiryPhoto {
+  uri:    string;
+  base64: string;
+}
+
 export interface InquiryData {
   type:              EnquiryType | null;
   category:          string;
   description:       string;
-  photos:            string[];
+  photos:            InquiryPhoto[];
   timing:            TimingOption | null;
   chosenDate:        string | null;
   name:              string;
@@ -66,7 +74,7 @@ const blank: InquiryData = {
   type:              null,
   category:          "",
   description:       "",
-  photos:            [],
+  photos:            [] as InquiryPhoto[],
   timing:            null,
   chosenDate:        null,
   name:              "",

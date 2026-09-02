@@ -66,7 +66,7 @@ export default function AuthGateScreen() {
       address:     inquiry.address,
       status:      "Enquiry Received",
       date:        new Date().toISOString(),
-      photos:      inquiry.photos,
+      photos:      inquiry.photos.map((p) => p.uri), // URIs only for display
       updates:     [],
     };
     persistGuestJob(newJob); // fire-and-forget — AsyncStorage write
