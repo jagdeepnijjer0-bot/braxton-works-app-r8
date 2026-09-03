@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "@/lib/colors";
 import { Button } from "@/components/ui/Button";
@@ -72,19 +72,13 @@ export default function AuthGateScreen() {
     persistGuestJob(newJob); // fire-and-forget — AsyncStorage write
     addJob(newJob);
 
-    // ── DEBUG: await photo upload so alerts appear before navigation ──────
-    // Snapshot inquiry.photos NOW (before any context reset) so the async
-    // closure captures values, not a reference to context that may change.
+    // Snapshot photos before any context reset so the async closure
+    // captures values, not a stale reference.
     const photoSnapshot = [...inquiry.photos];
     if (photoSnapshot.length > 0) {
-      Alert.alert("📸 Pre-upload check", `inquiry.photos.length = ${photoSnapshot.length}\nbase64 lengths: ${photoSnapshot.map(p => p.base64?.length ?? 0).join(", ")}`);
-      try {
-        await uploadJobPhotos(jobId, photoSnapshot, `guest/${jobId}`);
-      } catch (e: any) {
-        Alert.alert("📸 uploadJobPhotos threw", e?.message ?? String(e));
-      }
-    } else {
-      Alert.alert("📸 Pre-upload check", "inquiry.photos.length = 0 — no photos to upload");
+      await uploadJobPhotos(jobId, photoSnapshot, `guest/${jobId}`).catch((e) =>
+        console.error("[auth-gate] photo upload error:", e)
+      );
     }
 
     // ── Fire-and-forget: welcome message + push token ─────────────────────
