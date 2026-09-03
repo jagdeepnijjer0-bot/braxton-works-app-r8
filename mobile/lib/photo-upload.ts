@@ -1,12 +1,9 @@
+import { Alert } from "react-native";
 import { supabase } from "@/lib/supabase";
 import type { InquiryPhoto } from "@/lib/context";
 
 const BUCKET = "job-photos";
 
-/**
- * Decode a base64 string to a Uint8Array.
- * atob() is available in Hermes (global, same as browsers).
- */
 function base64ToUint8Array(b64: string): Uint8Array {
   const binary = atob(b64);
   const bytes  = new Uint8Array(binary.length);
@@ -16,78 +13,92 @@ function base64ToUint8Array(b64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Upload an array of InquiryPhotos to Supabase Storage and insert
- * corresponding rows into the job_photos table.
- *
- * Uses the base64 string captured at picker time — no file:// read needed.
- * base64 → Uint8Array → supabase.storage.upload() works reliably in Hermes.
- *
- * Must be called AFTER the job row exists in Supabase (RLS on job_photos INSERT
- * checks that the linked job has the right user_id / user_id IS NULL).
- *
- * prefix:
- *   "guest/{jobId}"    — for anon submissions (user_id IS NULL on the job)
- *   "{userId}/{jobId}" — for authenticated submissions
- */
 export async function uploadJobPhotos(
   jobId: string,
   photos: InquiryPhoto[],
   prefix: string,
 ): Promise<void> {
+  // ── STEP 0: confirm photos array reached this function ───────────────────
+  const step0 = `uploadJobPhotos called\nphotos.length=${photos.length}\nprefix=${prefix}\njobId=${jobId}`;
+  Alert.alert("📸 Upload Step 0", step0);
+
   if (photos.length === 0) return;
 
   for (let i = 0; i < photos.length; i++) {
     const photo = photos[i];
+
+    // ── STEP 1: check base64 presence ────────────────────────────────────
+    const b64Len = photo.base64?.length ?? 0;
+    const uriSnip = photo.uri?.slice(0, 60) ?? "(none)";
+    Alert.alert(
+      `📸 Step 1 — Photo ${i}`,
+      `uri: ${uriSnip}\nbase64 length: ${b64Len}\nbase64 truthy: ${!!photo.base64}`,
+    );
+
+    if (!photo.base64 || b64Len === 0) {
+      Alert.alert(`📸 Step 1 FAIL — Photo ${i}`, "base64 is empty/null — cannot upload");
+      continue;
+    }
+
+    // ── STEP 2: decode base64 → bytes ────────────────────────────────────
+    let bytes: Uint8Array;
     try {
-      if (!photo.base64 || photo.base64.length === 0) {
-        console.error(`[photo-upload] photo ${i} has no base64 data — skipping`);
-        continue;
-      }
+      bytes = base64ToUint8Array(photo.base64);
+    } catch (decodeErr: any) {
+      Alert.alert(`📸 Step 2 FAIL — Photo ${i}`, `base64 decode threw:\n${decodeErr?.message ?? String(decodeErr)}`);
+      continue;
+    }
+    Alert.alert(`📸 Step 2 OK — Photo ${i}`, `Decoded bytes: ${bytes.byteLength}`);
 
-      // Always upload as JPEG — the picker returns JPEG base64 regardless of
-      // source format (expo-image-picker encodes HEIC/HEIF as JPEG when base64:true).
-      const path        = `${prefix}/${i}.jpg`;
-      const bytes       = base64ToUint8Array(photo.base64);
-      const contentType = "image/jpeg";
+    if (bytes.byteLength === 0) {
+      Alert.alert(`📸 Step 2 FAIL — Photo ${i}`, "Decoded to 0 bytes — skipping");
+      continue;
+    }
 
-      console.log(`[photo-upload] uploading ${path}, bytes=${bytes.byteLength}`);
+    const path        = `${prefix}/${i}.jpg`;
+    const contentType = "image/jpeg";
 
-      const { error: uploadError } = await supabase.storage
+    // ── STEP 3: storage upload ────────────────────────────────────────────
+    let uploadErr: any = null;
+    try {
+      const result = await supabase.storage
         .from(BUCKET)
         .upload(path, bytes, { contentType, upsert: true });
+      uploadErr = result.error;
+    } catch (e: any) {
+      Alert.alert(`📸 Step 3 THREW — Photo ${i}`, `storage.upload threw:\n${e?.message ?? String(e)}`);
+      continue;
+    }
 
-      if (uploadError) {
-        console.error(
-          `[photo-upload] storage upload FAILED (${path}):`,
-          uploadError.message,
-          JSON.stringify(uploadError),
-        );
-        continue;
-      }
+    if (uploadErr) {
+      Alert.alert(
+        `📸 Step 3 FAIL — Photo ${i}`,
+        `storage.upload error:\n${uploadErr.message}\n\nFull: ${JSON.stringify(uploadErr)}`,
+      );
+      continue;
+    }
+    Alert.alert(`📸 Step 3 OK — Photo ${i}`, `Uploaded to: ${path}`);
 
-      console.log(`[photo-upload] storage upload OK: ${path}`);
+    // ── STEP 4: job_photos row insert ─────────────────────────────────────
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const url = urlData?.publicUrl ?? "";
 
-      // getPublicUrl gives us a stable URL reference even for private buckets.
-      // The admin API replaces this with a signed URL at read time.
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const url = urlData?.publicUrl ?? "";
+    let rowErr: any = null;
+    try {
+      const result = await supabase.from("job_photos").insert({ job_id: jobId, storage_path: path, url });
+      rowErr = result.error;
+    } catch (e: any) {
+      Alert.alert(`📸 Step 4 THREW — Photo ${i}`, `job_photos insert threw:\n${e?.message ?? String(e)}`);
+      continue;
+    }
 
-      const { error: rowError } = await supabase
-        .from("job_photos")
-        .insert({ job_id: jobId, storage_path: path, url });
-
-      if (rowError) {
-        console.error(
-          `[photo-upload] job_photos INSERT FAILED (${path}):`,
-          rowError.message,
-          JSON.stringify(rowError),
-        );
-      } else {
-        console.log(`[photo-upload] job_photos row OK: ${path}`);
-      }
-    } catch (e) {
-      console.error(`[photo-upload] unexpected error for photo ${i}:`, e);
+    if (rowErr) {
+      Alert.alert(
+        `📸 Step 4 FAIL — Photo ${i}`,
+        `job_photos insert error:\n${rowErr.message}\n\nFull: ${JSON.stringify(rowErr)}`,
+      );
+    } else {
+      Alert.alert(`📸 Step 4 OK — Photo ${i}`, `job_photos row inserted.\nAll done for photo ${i}!`);
     }
   }
 }

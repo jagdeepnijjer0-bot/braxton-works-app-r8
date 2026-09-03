@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from "react-native";
+import { Alert, View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "@/lib/colors";
 import { Button } from "@/components/ui/Button";
@@ -72,18 +72,24 @@ export default function AuthGateScreen() {
     persistGuestJob(newJob); // fire-and-forget — AsyncStorage write
     addJob(newJob);
 
-    // ── Fire-and-forget: photo upload + welcome message + push token ─────
-    // Do NOT await these — they must not block navigation to confirmation.
-    // Push token registration asks for OS permission (system dialog) and
-    // contacts Expo servers; either can take many seconds or never complete.
+    // ── DEBUG: await photo upload so alerts appear before navigation ──────
+    // Snapshot inquiry.photos NOW (before any context reset) so the async
+    // closure captures values, not a reference to context that may change.
+    const photoSnapshot = [...inquiry.photos];
+    if (photoSnapshot.length > 0) {
+      Alert.alert("📸 Pre-upload check", `inquiry.photos.length = ${photoSnapshot.length}\nbase64 lengths: ${photoSnapshot.map(p => p.base64?.length ?? 0).join(", ")}`);
+      try {
+        await uploadJobPhotos(jobId, photoSnapshot, `guest/${jobId}`);
+      } catch (e: any) {
+        Alert.alert("📸 uploadJobPhotos threw", e?.message ?? String(e));
+      }
+    } else {
+      Alert.alert("📸 Pre-upload check", "inquiry.photos.length = 0 — no photos to upload");
+    }
+
+    // ── Fire-and-forget: welcome message + push token ─────────────────────
     const sendAfterwork = async () => {
       try {
-        // Upload photos under guest/ prefix — matches the anon job_photos INSERT
-        // RLS policy (job.user_id IS NULL).
-        if (inquiry.photos.length > 0) {
-          await uploadJobPhotos(jobId, inquiry.photos, `guest/${jobId}`);
-        }
-
         const token = pushToken ?? await registerPushToken(jobId).then((t) => {
           if (t) setPushToken(t);
           return t;

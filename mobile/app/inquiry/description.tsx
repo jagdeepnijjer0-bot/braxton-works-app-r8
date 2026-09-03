@@ -35,8 +35,13 @@ export default function DescriptionScreen() {
     });
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
-      if (!asset.base64) {
-        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+      const b64Len = asset.base64?.length ?? 0;
+      Alert.alert(
+        "📸 Picker result (library)",
+        `uri: ${asset.uri?.slice(0, 50)}\nbase64 length: ${b64Len}\nwidth: ${asset.width} height: ${asset.height}`,
+      );
+      if (!asset.base64 || b64Len === 0) {
+        Alert.alert("Photo error", "Could not read photo data (base64 empty). Please try again.");
         return;
       }
       setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
@@ -55,8 +60,13 @@ export default function DescriptionScreen() {
     });
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
-      if (!asset.base64) {
-        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+      const b64Len = asset.base64?.length ?? 0;
+      Alert.alert(
+        "📸 Picker result (camera)",
+        `uri: ${asset.uri?.slice(0, 50)}\nbase64 length: ${b64Len}\nwidth: ${asset.width} height: ${asset.height}`,
+      );
+      if (!asset.base64 || b64Len === 0) {
+        Alert.alert("Photo error", "Could not read photo data (base64 empty). Please try again.");
         return;
       }
       setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
