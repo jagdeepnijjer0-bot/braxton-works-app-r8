@@ -1,16 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { InquiryPhoto } from "@/lib/context";
 
-const BUCKET = "job-photos";
-
-function base64ToUint8Array(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes  = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
+const FUNCTION_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/upload-job-photo`;
 
 export async function uploadJobPhotos(
   jobId: string,
@@ -19,39 +10,35 @@ export async function uploadJobPhotos(
 ): Promise<void> {
   if (photos.length === 0) return;
 
-  for (let i = 0; i < photos.length; i++) {
-    const photo = photos[i];
-    if (!photo.base64) continue;
+  // Get the current session token (may be null for guest — that's fine,
+  // the Edge Function accepts anon JWT via the apikey header as fallback).
+  const { data: { session } } = await supabase.auth.getSession();
+  const authHeader = session?.access_token
+    ? `Bearer ${session.access_token}`
+    : `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`;
 
-    let bytes: Uint8Array;
-    try {
-      bytes = base64ToUint8Array(photo.base64);
-    } catch (e) {
-      console.error(`[photo-upload] base64 decode failed for photo ${i}:`, e);
-      continue;
-    }
-    if (bytes.byteLength === 0) continue;
+  await Promise.allSettled(
+    photos.map(async (photo, i) => {
+      if (!photo.base64) return;
 
-    const path = `${prefix}/${i}.jpg`;
+      try {
+        const res = await fetch(FUNCTION_URL, {
+          method:  "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": authHeader,
+            "apikey":        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
+          },
+          body: JSON.stringify({ jobId, index: i, base64: photo.base64, prefix }),
+        });
 
-    const { error: uploadErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, bytes, { contentType: "image/jpeg", upsert: true });
-
-    if (uploadErr) {
-      console.error(`[photo-upload] storage upload failed for photo ${i}:`, uploadErr.message);
-      continue;
-    }
-
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    const url = urlData?.publicUrl ?? "";
-
-    const { error: rowErr } = await supabase
-      .from("job_photos")
-      .insert({ job_id: jobId, storage_path: path, url });
-
-    if (rowErr) {
-      console.error(`[photo-upload] job_photos insert failed for photo ${i}:`, rowErr.message);
-    }
-  }
+        if (!res.ok) {
+          const err = await res.text().catch(() => res.statusText);
+          console.error(`[photo-upload] photo ${i} upload failed (${res.status}):`, err);
+        }
+      } catch (e) {
+        console.error(`[photo-upload] photo ${i} fetch error:`, e);
+      }
+    })
+  );
 }
