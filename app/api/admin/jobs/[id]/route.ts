@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { updateJobRow } from "@/lib/google-sheets"
 
+const PUSH_FN_URL = "https://axryceaxxihewqmazuve.supabase.co/functions/v1/send-push-notification"
+
+async function notifyPush(payload: Record<string, unknown>) {
+  try {
+    await fetch(PUSH_FN_URL, {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    console.warn("[push] notify failed (non-fatal):", e)
+  }
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,6 +70,17 @@ export async function PATCH(
         console.error("Job update error:", JSON.stringify(updateError))
         return NextResponse.json({ error: "Failed to update job", detail: updateError.message }, { status: 500 })
       }
+    }
+
+    // ── Push notification on status change (non-blocking) ───
+    if (body.status && body.status !== current.status) {
+      notifyPush({
+        type:       "UPDATE",
+        table:      "jobs",
+        schema:     "public",
+        record:     { id, status: body.status },
+        old_record: { id, status: current.status },
+      })
     }
 
     // ── Write job_update row if status changed or note added ─
