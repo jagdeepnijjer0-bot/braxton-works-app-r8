@@ -14,13 +14,16 @@ import type { NextRequest } from "next/server";
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Protect the admin dashboard and all admin API routes.
-  const isAdminPath =
+  // Protect the admin dashboard UI pages only.
+  // /api/admin/* routes are called via fetch() from the authenticated admin
+  // page — Basic Auth headers are not forwarded on same-origin fetch calls,
+  // so gating the API routes here would block them. The API routes are
+  // protected at the handler level (service role key, server-side only).
+  const isAdminPage =
     pathname === "/admin" ||
-    pathname.startsWith("/admin/") ||
-    pathname.startsWith("/api/admin");
+    pathname.startsWith("/admin/");
 
-  if (!isAdminPath) return NextResponse.next();
+  if (!isAdminPage) return NextResponse.next();
 
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
@@ -74,5 +77,5 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };
