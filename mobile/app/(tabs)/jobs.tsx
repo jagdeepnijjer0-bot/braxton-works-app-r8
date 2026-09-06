@@ -32,9 +32,24 @@ export default function JobsScreen() {
   // channelRef holds this instance's active Supabase channel.
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Shared handler — used by both auth and guest subscriptions.
+  const handleJobUpdate = (payload: { new: unknown }) => {
+    const row = payload.new as { id?: string; status?: JobStatus };
+    if (!row.id || !row.status) return;
+    const current = jobsRef.current.find((j) => j.id === row.id);
+    if (!current || current.status === row.status) return;
+    const u: JobUpdate = {
+      id:         `rt-${Date.now()}`,
+      message:    `Status changed to ${row.status}`,
+      type:       "status_change",
+      created_at: new Date().toISOString(),
+    };
+    updateJobStatus(row.id, row.status, u);
+  };
+
+  // Authenticated user realtime subscription — broad filter (user's rows only via RLS).
   useEffect(() => {
     if (!isAuthenticated) {
-      // Clean up if the user signed out while on this screen.
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -42,44 +57,19 @@ export default function JobsScreen() {
       return;
     }
 
-    // Guard against a duplicate active subscription at the Supabase level.
-    // Covers full remounts (new component instance, fresh refs) where the previous
-    // instance's channel is still alive. supabase.getChannels() is the global truth.
     const alreadyActive = supabase.getChannels().some(
       (c) => c.topic.startsWith("realtime:jobs-rt")
     );
     if (alreadyActive) return;
 
-    // Tear down any stale channel this instance created before this effect run.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    // Module-level counter ensures a unique channel name even across remounts —
-    // component-level refs reset to 0 on each mount, so two instances would both
-    // produce "jobs-rt-1" and supabase.channel() would return the same cached object.
     _jobsChannelSeq += 1;
     const channel = supabase.channel(`jobs-rt-${_jobsChannelSeq}`);
-
-    channel.on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "jobs" },
-      (payload) => {
-        const row = payload.new as { id?: string; status?: JobStatus };
-        if (!row.id || !row.status) return;
-        const current = jobsRef.current.find((j) => j.id === row.id);
-        if (!current || current.status === row.status) return;
-        const u: JobUpdate = {
-          id:         `rt-${Date.now()}`,
-          message:    `Status changed to ${row.status}`,
-          type:       "status_change",
-          created_at: new Date().toISOString(),
-        };
-        updateJobStatus(row.id, row.status, u);
-      }
-    );
-
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs" }, handleJobUpdate);
     channel.subscribe();
     channelRef.current = channel;
 
@@ -89,7 +79,37 @@ export default function JobsScreen() {
         channelRef.current = null;
       }
     };
-  }, [isAuthenticated]); // stable dep — never re-runs because of a jobs update
+  }, [isAuthenticated]);
+
+  // Guest realtime subscription — one channel per job ID since anon RLS only
+  // allows reads where user_id IS NULL; we filter per-job to scope each listener.
+  const guestChannelRefs = useRef<ReturnType<typeof supabase.channel>[]>([]);
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const guestJobIds = jobsRef.current.map((j) => j.id);
+    if (guestJobIds.length === 0) return;
+
+    // Tear down previous guest channels.
+    for (const ch of guestChannelRefs.current) supabase.removeChannel(ch);
+    guestChannelRefs.current = [];
+
+    for (const jobId of guestJobIds) {
+      const ch = supabase
+        .channel(`guest-job-${jobId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${jobId}` },
+          handleJobUpdate
+        )
+        .subscribe();
+      guestChannelRefs.current.push(ch);
+    }
+
+    return () => {
+      for (const ch of guestChannelRefs.current) supabase.removeChannel(ch);
+      guestChannelRefs.current = [];
+    };
+  }, [isAuthenticated, jobs.length]); // re-subscribe if guest gets a new job
 
   const filtered = jobs.filter((j) =>
     tab === "active" ? ACTIVE_STATUSES.includes(j.status) : COMPLETE_STATUSES.includes(j.status)

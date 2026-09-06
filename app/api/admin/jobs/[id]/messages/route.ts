@@ -33,13 +33,18 @@ export async function POST(
 ) {
   try {
     const { id } = await params
+    console.log("[admin/messages POST] hit for job:", id)
+
     const { body } = await req.json() as { body?: string }
+    console.log("[admin/messages POST] body length:", body?.length ?? 0)
 
     if (!body?.trim()) {
       return NextResponse.json({ error: "Message body is required" }, { status: 400 })
     }
 
     const supabase = createAdminClient()
+    console.log("[admin/messages POST] supabase url:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30))
+    console.log("[admin/messages POST] service key set:", !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
     const { data, error } = await supabase
       .from("messages")
@@ -48,7 +53,7 @@ export async function POST(
       .single()
 
     if (error) {
-      console.error("Admin message insert error:", error.message)
+      console.error("Admin message insert error:", error.message, error.code, error.details)
       return NextResponse.json({ error: `Failed to send message: ${error.message}` }, { status: 500 })
     }
 

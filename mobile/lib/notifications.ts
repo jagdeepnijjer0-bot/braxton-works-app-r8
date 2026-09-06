@@ -13,7 +13,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function registerPushToken(jobId?: string): Promise<string | null> {
+export async function registerPushToken(jobIds?: string[]): Promise<string | null> {
   if (Platform.OS === "web") return null;
   if (!Device.isDevice) return null;
 
@@ -36,10 +36,12 @@ export async function registerPushToken(jobId?: string): Promise<string | null> 
   const tokenData = await Notifications.getExpoPushTokenAsync();
   const token = tokenData.data;
 
-  // Persist to Supabase so server can send targeted pushes
-  if (jobId) {
+  // Upsert one row per (token, job_id) pair so the server can find this device
+  // for any of the user's jobs.
+  if (jobIds && jobIds.length > 0) {
+    const rows = jobIds.map((job_id) => ({ token, job_id }));
     await withTimeout(
-      supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+      supabase.from("push_tokens").upsert(rows, { onConflict: "token,job_id" }),
       10_000
     ).catch(() => {});
   }
@@ -51,7 +53,6 @@ export function addNotificationResponseListener(
   handler: (jobId: string | null) => void
 ) {
   if (Platform.OS === "web") {
-    // Web doesn't support Expo push notifications — return a no-op subscription
     return { remove: () => {} };
   }
   return Notifications.addNotificationResponseReceivedListener((response) => {

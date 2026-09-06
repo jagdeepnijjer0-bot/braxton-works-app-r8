@@ -8,7 +8,7 @@ import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Message {
   id:         string;
@@ -162,17 +162,14 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
 export default function MessagesScreen() {
   const router = useRouter();
   const { jobs } = useApp();
-  // Auto-select the most recent job so the user lands directly in the chat thread.
-  // If they have multiple jobs, show a back button to switch between them.
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(
-    jobs.length === 1 ? jobs[0].id : null
-  );
+  // null = show job list; a job id = show that chat thread.
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // Keep auto-selection in sync if jobs load asynchronously after mount.
-  const prevJobsLen = useState(jobs.length)[0];
-  if (jobs.length === 1 && !selectedJobId) {
-    setSelectedJobId(jobs[0].id);
-  }
+  // Auto-select the only job so the user lands directly in the chat.
+  // Runs whenever `jobs` changes so it also catches jobs that load after mount.
+  useEffect(() => {
+    if (jobs.length === 1) setSelectedJobId(jobs[0].id);
+  }, [jobs]);
 
   if (selectedJobId) {
     const job = jobs.find((j) => j.id === selectedJobId);

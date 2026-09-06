@@ -85,7 +85,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setPushToken, setJobs, setIsAuthenticated, setGuestMode, setEmailPendingConfirmation } = useApp();
 
-  const fetchUserJobs = async (userId: string) => {
+  const fetchUserJobs = async (userId: string): Promise<string[]> => {
     try {
       const { data, error } = await supabase
         .from("jobs")
@@ -104,8 +104,10 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           photos:      [],
           updates:     [],
         })) as Job[]);
+        return data.map((row) => row.id as string);
       }
     } catch { /* non-fatal */ }
+    return [];
   };
 
   // Handle tradenest://auth/callback deep links from Supabase confirmation emails.
@@ -248,22 +250,24 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           } else if (session) {
             setIsAuthenticated(true);
             // Fetch authenticated user's jobs from Supabase on boot.
-            await fetchUserJobs(session.user.id);
+            const jobIds = await fetchUserJobs(session.user.id);
+            // Register push token linked to all the user's jobs (fire-and-forget).
+            registerPushToken(jobIds).then((t) => { if (t) setPushToken(t); });
           } else {
             // Guest: restore recent (under-24h) enquiries from AsyncStorage,
             // then background-refresh their live status from Supabase so a
             // status update made by admin is reflected after app restart.
+            let guestIds: string[] = [];
             try {
               const recent = await loadRecentGuestJobs();
               if (recent.length > 0) {
                 setJobs(recent as Job[]);
-                // Background: fetch live statuses for all guest job IDs.
-                const ids = recent.map((j) => j.id as string).filter(Boolean);
-                if (ids.length > 0) {
+                guestIds = recent.map((j) => j.id as string).filter(Boolean);
+                if (guestIds.length > 0) {
                   supabase
                     .from("jobs")
                     .select("id, status")
-                    .in("id", ids)
+                    .in("id", guestIds)
                     .then(({ data }) => {
                       if (!data) return;
                       const statusMap: Record<string, string> = {};
@@ -273,7 +277,6 @@ function AppBootstrap({ children }: { children: ReactNode }) {
                           statusMap[j.id] ? { ...j, status: statusMap[j.id] } : j
                         )
                       );
-                      // Persist refreshed statuses back to AsyncStorage.
                       for (const job of recent) {
                         const live = statusMap[job.id as string];
                         if (live && live !== job.status) {
@@ -285,11 +288,12 @@ function AppBootstrap({ children }: { children: ReactNode }) {
                 }
               }
             } catch { /* non-fatal */ }
+            // Register push token for guest jobs (fire-and-forget).
+            if (guestIds.length > 0) {
+              registerPushToken(guestIds).then((t) => { if (t) setPushToken(t); });
+            }
           }
         } catch { /* session restore is non-fatal */ }
-
-        // Push token registration is fire-and-forget (non-blocking).
-        registerPushToken().then((t) => { if (t) setPushToken(t); });
       } catch (e) {
         console.error("[boot] unexpected error:", e);
       } finally {
@@ -307,7 +311,9 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         // Clear guest mode — signed-in users are not guests.
         setGuestMode(false);
         // Replace jobs with this user's own Supabase jobs — never merge with guest/stale jobs.
-        fetchUserJobs(session.user.id);
+        fetchUserJobs(session.user.id).then((ids) => {
+          if (ids.length > 0) registerPushToken(ids).catch(() => {});
+        });
       } else if (event === "SIGNED_OUT") {
         // Clear authenticated jobs immediately, then restore any recent guest jobs.
         // A signed-in account's jobs must not appear after sign-out.
