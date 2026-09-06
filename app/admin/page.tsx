@@ -181,7 +181,11 @@ export default function AdminDashboard() {
     setDraft("")
     const optimistic: Message = { id: `opt-${Date.now()}`, body, sender: "contractor", created_at: new Date().toISOString() }
     setMessages((prev) => [...prev, optimistic])
-    await supabase.from("messages").insert({ job_id: selectedJob.id, body, sender: "contractor" })
+    await fetch(`/api/admin/jobs/${selectedJob.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    })
     setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
   }
 

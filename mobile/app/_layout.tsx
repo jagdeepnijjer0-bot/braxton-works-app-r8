@@ -10,7 +10,7 @@ import { useEffect, useCallback, Component } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { registerPushToken, addNotificationResponseListener } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
-import { loadAndClearPendingJobData, loadRecentGuestJobs } from "@/lib/guest-jobs";
+import { loadAndClearPendingJobData, loadRecentGuestJobs, persistGuestJob } from "@/lib/guest-jobs";
 import { uploadJobPhotos } from "@/lib/photo-upload";
 import type { ReactNode } from "react";
 
@@ -250,10 +250,40 @@ function AppBootstrap({ children }: { children: ReactNode }) {
             // Fetch authenticated user's jobs from Supabase on boot.
             await fetchUserJobs(session.user.id);
           } else {
-            // Guest: restore only recent (under-24h) enquiries from this device.
+            // Guest: restore recent (under-24h) enquiries from AsyncStorage,
+            // then background-refresh their live status from Supabase so a
+            // status update made by admin is reflected after app restart.
             try {
               const recent = await loadRecentGuestJobs();
-              if (recent.length > 0) setJobs(recent as Job[]);
+              if (recent.length > 0) {
+                setJobs(recent as Job[]);
+                // Background: fetch live statuses for all guest job IDs.
+                const ids = recent.map((j) => j.id as string).filter(Boolean);
+                if (ids.length > 0) {
+                  supabase
+                    .from("jobs")
+                    .select("id, status")
+                    .in("id", ids)
+                    .then(({ data }) => {
+                      if (!data) return;
+                      const statusMap: Record<string, string> = {};
+                      for (const row of data) statusMap[row.id] = row.status;
+                      setJobs((prev) =>
+                        prev.map((j) =>
+                          statusMap[j.id] ? { ...j, status: statusMap[j.id] } : j
+                        )
+                      );
+                      // Persist refreshed statuses back to AsyncStorage.
+                      for (const job of recent) {
+                        const live = statusMap[job.id as string];
+                        if (live && live !== job.status) {
+                          persistGuestJob({ ...job, status: live });
+                        }
+                      }
+                    })
+                    .catch(() => { /* non-fatal */ });
+                }
+              }
             } catch { /* non-fatal */ }
           }
         } catch { /* session restore is non-fatal */ }
