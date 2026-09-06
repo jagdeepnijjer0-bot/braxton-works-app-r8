@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+const BUCKET         = "job-photos"
+const SIGNED_URL_TTL = 60 * 60 // 1 hour
+
 export async function GET() {
   try {
     const supabase = createAdminClient()
@@ -22,22 +25,45 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 })
     }
 
-    // Resolve customer name / phone for display
+    // Generate signed URLs for all job photos so the admin dashboard can display
+    // images from the private bucket without exposing long-lived public URLs.
+    const allPaths = (jobs ?? []).flatMap((j) =>
+      (j.job_photos ?? []).map((p: { storage_path: string }) => p.storage_path)
+    ).filter(Boolean)
+
+    // Batch createSignedUrls — one call for all paths across all jobs.
+    const signedMap: Record<string, string> = {}
+    if (allPaths.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(allPaths, SIGNED_URL_TTL)
+      if (signed) {
+        for (const entry of signed) {
+          if (entry.signedUrl) signedMap[entry.path] = entry.signedUrl
+        }
+      }
+    }
+
     const jobsWithCustomer = (jobs ?? []).map((job) => {
-      let customerName  = job.guest_name  ?? "Guest"
-      let customerPhone = job.guest_phone ?? ""
-      let contactPref   = job.guest_contact_preference ?? ""
+      const customerName  = job.guest_name  ?? "Guest"
+      const customerPhone = job.guest_phone ?? ""
+      const contactPref   = job.guest_contact_preference ?? ""
+
+      const photosWithSignedUrls = (job.job_photos ?? []).map(
+        (p: { url: string; storage_path: string }) => ({
+          storage_path: p.storage_path,
+          url: signedMap[p.storage_path] ?? p.url,
+        })
+      )
 
       return {
         ...job,
-        customer_name:  customerName,
-        customer_phone: customerPhone,
+        job_photos:                  photosWithSignedUrls,
+        customer_name:               customerName,
+        customer_phone:              customerPhone,
         customer_contact_preference: contactPref,
       }
     })
-
-    // If user_id is set, fetch profile details in a separate query
-    // (kept simple for Phase 1 — guest submissions are the initial use case)
 
     return NextResponse.json({ jobs: jobsWithCustomer })
   } catch (err) {

@@ -1,24 +1,45 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Droplets, Zap, DoorOpen, Microwave, Hammer, Wrench } from "lucide-react-native";
+import {
+  ArrowLeft, Droplets, Zap, Flame, CloudRain, DoorOpen,
+  Microwave, Wrench, MoreHorizontal,
+  Building2, Bath, UtensilsCrossed, AppWindow,
+  SquareDashed, PaintBucket,
+} from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { StepProgress } from "@/components/ui/StepProgress";
 import { useState } from "react";
 
-const categories = [
-  { id: "plumbing",   label: "Plumbing",   icon: Droplets  },
-  { id: "electrical", label: "Electrical", icon: Zap       },
-  { id: "locks",      label: "Locks",      icon: DoorOpen  },
-  { id: "appliances", label: "Appliances", icon: Microwave },
-  { id: "roofing",    label: "Roofing",    icon: Hammer    },
-  { id: "general",    label: "General",    icon: Wrench    },
+const ISSUE_CATEGORIES = [
+  { id: "plumbing",         label: "Plumbing",          icon: Droplets      },
+  { id: "electrical",       label: "Electrical",         icon: Zap           },
+  { id: "heating-boiler",   label: "Heating / Boiler",   icon: Flame         },
+  { id: "damp-roofing",     label: "Damp / Roofing",     icon: CloudRain     },
+  { id: "locks-doors",      label: "Locks / Doors",      icon: DoorOpen      },
+  { id: "appliances",       label: "Appliances",         icon: Microwave     },
+  { id: "general-repairs",  label: "General Repairs",    icon: Wrench        },
+  { id: "other",            label: "Other",              icon: MoreHorizontal},
+];
+
+const ENQUIRY_CATEGORIES = [
+  { id: "extension",            label: "Extension",              icon: Building2      },
+  { id: "refurb",               label: "Refurb",                 icon: Wrench         },
+  { id: "kitchen",              label: "Kitchen",                icon: UtensilsCrossed},
+  { id: "bathroom",             label: "Bathroom",               icon: Bath           },
+  { id: "windows-doors",        label: "Windows & Doors",        icon: AppWindow      },
+  { id: "flooring-carpets",     label: "Flooring & Carpets",     icon: SquareDashed   },
+  { id: "painting-decorating",  label: "Painting & Decorating",  icon: PaintBucket    },
+  { id: "other",                label: "Other",                  icon: MoreHorizontal },
 ];
 
 export default function CategoryScreen() {
   const router = useRouter();
   const { inquiry, setInquiry } = useApp();
   const [selected, setSelected] = useState<string | null>(null);
+
+  const isIssue = inquiry.type === "issue";
+  const categories = isIssue ? ISSUE_CATEGORIES : ENQUIRY_CATEGORIES;
 
   const handleSelect = (label: string) => {
     setSelected(label);
@@ -37,7 +58,7 @@ export default function CategoryScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>
-          {inquiry.type === "issue" ? "What type of\nissue?" : "What are you\nlooking for?"}
+          {isIssue ? "What type of\nissue?" : "What are you\nlooking for?"}
         </Text>
         <Text style={styles.sub}>Select a category</Text>
 
@@ -69,23 +90,23 @@ export default function CategoryScreen() {
 const styles = StyleSheet.create({
   safe:              { flex: 1, backgroundColor: colors.navy },
   back:              { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 2 },
-  backText: { color: colors.muted, fontSize: 14, fontWeight: "600" },
+  backText:          { color: colors.muted, fontSize: 14, fontWeight: "600" },
   content:           { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 },
   title:             { color: colors.white, fontSize: 34, fontWeight: "800", letterSpacing: -0.8, lineHeight: 40, marginBottom: 8 },
-  sub: { color: colors.muted, fontSize: 15, fontWeight: "400", lineHeight: 22 },
+  sub:               { color: colors.muted, fontSize: 15, fontWeight: "400", lineHeight: 22, marginBottom: 20 },
   grid:              { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: {
-    width:           "47.5%",
-    backgroundColor: colors.white,
-    borderRadius:    20,
-    padding:         20,
-    alignItems:      "flex-start",
-    gap:             14,
-    shadowColor:     "#000",
-    shadowOpacity:   0.09,
-    shadowRadius:    12,
-    shadowOffset:    { width: 0, height: 4 },
-    elevation:       3,
+    width:            "47.5%",
+    backgroundColor:  colors.white,
+    borderRadius:     20,
+    padding:          20,
+    alignItems:       "flex-start",
+    gap:              14,
+    shadowColor:      "#000",
+    shadowOpacity:    0.09,
+    shadowRadius:     12,
+    shadowOffset:     { width: 0, height: 4 },
+    elevation:        3,
   },
   cardSelected:      { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.35 },
   iconBox:           { width: 50, height: 50, borderRadius: 14, backgroundColor: "rgba(245,158,11,0.1)", alignItems: "center", justifyContent: "center" },

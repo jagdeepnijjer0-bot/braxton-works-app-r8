@@ -1,15 +1,26 @@
 import React, { createContext, useContext, useState } from "react";
 import type { JobStatus } from "./status";
 
-export type InquiryType        = "issue" | "inquiry";
+export type EnquiryType        = "issue" | "enquiry";
 export type TimingOption       = "asap" | "this-week" | "choose-date";
 export type ContactPreference  = "phone" | "text" | "in-app";
 
+// Keep internal code alias for backwards compat
+export type InquiryType = EnquiryType;
+
+// A photo captured during the enquiry flow.
+// base64 is the raw JPEG base64 string from expo-image-picker (no data URI prefix).
+// uri is the local file:// URI used for display thumbnails only.
+export interface InquiryPhoto {
+  uri:    string;
+  base64: string;
+}
+
 export interface InquiryData {
-  type:              InquiryType | null;
+  type:              EnquiryType | null;
   category:          string;
   description:       string;
-  photos:            string[];   // local URIs
+  photos:            InquiryPhoto[];
   timing:            TimingOption | null;
   chosenDate:        string | null;
   name:              string;
@@ -18,34 +29,52 @@ export interface InquiryData {
   contactPreference: ContactPreference | null;
 }
 
+export interface JobUpdate {
+  id:         string;
+  message:    string;
+  type:       "status_change" | "note";
+  created_at: string;
+}
+
 export interface Job {
   id:          string;
-  type:        InquiryType;
+  type:        EnquiryType;
   category:    string;
   description: string;
   address:     string;
   status:      JobStatus;
   date:        string;
   photos:      string[];
-  updates:     { message: string; created_at: string; type: "status_change" | "note" }[];
+  updates:     JobUpdate[];
 }
 
 interface AppContextValue {
-  inquiry:       InquiryData;
-  setInquiry:    (d: InquiryData) => void;
-  resetInquiry:  () => void;
-  jobs:          Job[];
-  addJob:        (j: Job) => void;
-  setJobs:       (j: Job[]) => void;
-  isAuthenticated: boolean;
+  inquiry:            InquiryData;
+  setInquiry:         React.Dispatch<React.SetStateAction<InquiryData>>;
+  resetInquiry:       () => void;
+  jobs:               Job[];
+  addJob:             (j: Job) => void;
+  setJobs:            (j: Job[]) => void;
+  updateJobStatus:    (jobId: string, status: JobStatus, update: JobUpdate) => void;
+  isAuthenticated:    boolean;
   setIsAuthenticated: (v: boolean) => void;
+  // True only when the user explicitly chose "Continue as Guest".
+  // False for anyone who has signed in or started sign-up (even email-pending).
+  guestMode:          boolean;
+  setGuestMode:       (v: boolean) => void;
+  // True after signUp() when Supabase requires email confirmation.
+  // Cleared when the confirmation deep-link is handled.
+  emailPendingConfirmation:    boolean;
+  setEmailPendingConfirmation: (v: boolean) => void;
+  pushToken:          string | null;
+  setPushToken:       (t: string | null) => void;
 }
 
 const blank: InquiryData = {
   type:              null,
   category:          "",
   description:       "",
-  photos:            [],
+  photos:            [] as InquiryPhoto[],
   timing:            null,
   chosenDate:        null,
   name:              "",
@@ -57,16 +86,37 @@ const blank: InquiryData = {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [inquiry, setInquiry]             = useState<InquiryData>(blank);
-  const [jobs, setJobs]                   = useState<Job[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [inquiry, setInquiry]                                 = useState<InquiryData>(blank);
+  const [jobs, setJobs]                                       = useState<Job[]>([]);
+  const [isAuthenticated, setIsAuthenticated]                 = useState(false);
+  const [guestMode, setGuestMode]                             = useState(false);
+  const [emailPendingConfirmation, setEmailPendingConfirmation] = useState(false);
+  const [pushToken, setPushToken]                             = useState<string | null>(null);
 
   const resetInquiry = () => setInquiry(blank);
-  const addJob       = (j: Job) => setJobs((prev) => [j, ...prev]);
+
+  const addJob = (j: Job) => setJobs((prev) => [j, ...prev]);
+
+  const updateJobStatus = (jobId: string, status: JobStatus, update: JobUpdate) => {
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
+          ? { ...j, status, updates: [...j.updates, update] }
+          : j
+      )
+    );
+  };
 
   return (
     <AppContext.Provider
-      value={{ inquiry, setInquiry, resetInquiry, jobs, addJob, setJobs, isAuthenticated, setIsAuthenticated }}
+      value={{
+        inquiry, setInquiry, resetInquiry,
+        jobs, addJob, setJobs, updateJobStatus,
+        isAuthenticated, setIsAuthenticated,
+        guestMode, setGuestMode,
+        emailPendingConfirmation, setEmailPendingConfirmation,
+        pushToken, setPushToken,
+      }}
     >
       {children}
     </AppContext.Provider>

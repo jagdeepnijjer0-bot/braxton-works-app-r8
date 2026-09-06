@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, Image, Alert,
+  StyleSheet, SafeAreaView, Image, Alert, Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Camera, X, Image as ImageIcon } from "lucide-react-native";
@@ -24,30 +24,42 @@ export default function DescriptionScreen() {
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo library access to add photos to your inquiry.");
+      Alert.alert("Permission needed", "Allow photo library access to add photos to your enquiry.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       allowsMultipleSelection: false,
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+        return;
+      }
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
     }
   };
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow camera access to take a photo for your inquiry.");
+      Alert.alert("Permission needed", "Allow camera access to take a photo for your enquiry.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      setInquiry({ ...inquiry, photos: [...inquiry.photos, result.assets[0].uri] });
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert("Photo error", "Could not read photo data. Please try again.");
+        return;
+      }
+      setInquiry({ ...inquiry, photos: [...inquiry.photos, { uri: asset.uri, base64: asset.base64 }] });
     }
   };
 
@@ -92,9 +104,9 @@ export default function DescriptionScreen() {
 
         <Text style={styles.fieldLabel}>PHOTOS (OPTIONAL)</Text>
         <View style={styles.photoGrid}>
-          {inquiry.photos.map((uri, i) => (
+          {inquiry.photos.map((photo, i) => (
             <View key={i} style={styles.photoWrap}>
-              <Image source={{ uri }} style={styles.photo} />
+              <Image source={{ uri: photo.uri }} style={styles.photo} />
               <TouchableOpacity style={styles.removeBtn} onPress={() => removePhoto(i)}>
                 <X color={colors.white} size={12} />
               </TouchableOpacity>
@@ -116,7 +128,7 @@ export default function DescriptionScreen() {
 
         <Button
           label="Continue"
-          onPress={() => router.push("/inquiry/urgency")}
+          onPress={() => { Keyboard.dismiss(); router.push("/inquiry/urgency"); }}
           disabled={!canContinue}
           style={{ marginTop: 12 }}
         />

@@ -1,25 +1,30 @@
 export type JobStatus =
-  | "New"
-  | "Quoted"
-  | "Booked"
-  | "In Progress"
-  | "Complete"
+  | "Enquiry Received"
+  | "Assigning Contractor"
+  | "Contractor Assigned"
+  | "Quote Ready"
+  | "Job Underway"
+  | "Job Completed"
   | "Cancelled"
 
-export const STATUS_DISPLAY: Record<JobStatus, string> = {
-  "New":         "Submitted",
-  "Quoted":      "Under Review",
-  "Booked":      "Contractor Assigned",
-  "In Progress": "In Progress",
-  "Complete":    "Completed",
-  "Cancelled":   "Cancelled",
+export const JOURNEY_STEPS: JobStatus[] = [
+  "Enquiry Received",
+  "Assigning Contractor",
+  "Contractor Assigned",
+  "Quote Ready",
+  "Job Underway",
+  "Job Completed",
+]
+
+export function stepIndex(status: JobStatus): number {
+  return JOURNEY_STEPS.indexOf(status)
 }
 
 export type StatusTone = "active" | "complete" | "cancelled"
 
 export function statusTone(status: JobStatus): StatusTone {
-  if (status === "Complete")  return "complete"
-  if (status === "Cancelled") return "cancelled"
+  if (status === "Job Completed") return "complete"
+  if (status === "Cancelled")     return "cancelled"
   return "active"
 }
 
@@ -29,5 +34,8 @@ export const STATUS_PILL_COLORS: Record<StatusTone, { bg: string; text: string }
   cancelled: { bg: "#FEE2E2", text: "#991B1B" },
 }
 
-export const ACTIVE_STATUSES:   JobStatus[] = ["New", "Quoted", "Booked", "In Progress"]
-export const COMPLETE_STATUSES: JobStatus[] = ["Complete", "Cancelled"]
+export const ACTIVE_STATUSES:   JobStatus[] = [
+  "Enquiry Received", "Assigning Contractor", "Contractor Assigned",
+  "Quote Ready", "Job Underway",
+]
+export const COMPLETE_STATUSES: JobStatus[] = ["Job Completed", "Cancelled"]

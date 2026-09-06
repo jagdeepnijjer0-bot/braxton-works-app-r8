@@ -1,20 +1,95 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Wrench, ChevronRight } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
-import { STATUS_DISPLAY, STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES } from "@/lib/status";
-import { useState } from "react";
+import { STATUS_PILL_COLORS, statusTone, ACTIVE_STATUSES, COMPLETE_STATUSES, type JobStatus } from "@/lib/status";
+import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { JobUpdate } from "@/lib/context";
 
 type Tab = "active" | "completed";
 
+// Module-level counter — persists across component remounts (unlike a useRef).
+// Both old and new instances increment from the same counter, so they never
+// produce the same channel name and supabase.channel() always returns a fresh object.
+let _jobsChannelSeq = 0;
+
 export default function JobsScreen() {
   const router = useRouter();
-  const { jobs } = useApp();
+  const { jobs, updateJobStatus, isAuthenticated, guestMode, emailPendingConfirmation } = useApp();
   const [tab, setTab] = useState<Tab>("active");
+
+  // jobsRef gives the realtime handler access to the current jobs list without
+  // making `jobs` a dependency of the subscription effect (which would re-create
+  // the channel on every status update, causing the .on()-after-subscribe crash).
+  const jobsRef = useRef(jobs);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
+  // channelRef holds this instance's active Supabase channel.
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Clean up if the user signed out while on this screen.
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    // Guard against a duplicate active subscription at the Supabase level.
+    // Covers full remounts (new component instance, fresh refs) where the previous
+    // instance's channel is still alive. supabase.getChannels() is the global truth.
+    const alreadyActive = supabase.getChannels().some(
+      (c) => c.topic.startsWith("realtime:jobs-rt")
+    );
+    if (alreadyActive) return;
+
+    // Tear down any stale channel this instance created before this effect run.
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    // Module-level counter ensures a unique channel name even across remounts —
+    // component-level refs reset to 0 on each mount, so two instances would both
+    // produce "jobs-rt-1" and supabase.channel() would return the same cached object.
+    _jobsChannelSeq += 1;
+    const channel = supabase.channel(`jobs-rt-${_jobsChannelSeq}`);
+
+    channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "jobs" },
+      (payload) => {
+        const row = payload.new as { id?: string; status?: JobStatus };
+        if (!row.id || !row.status) return;
+        const current = jobsRef.current.find((j) => j.id === row.id);
+        if (!current || current.status === row.status) return;
+        const u: JobUpdate = {
+          id:         `rt-${Date.now()}`,
+          message:    `Status changed to ${row.status}`,
+          type:       "status_change",
+          created_at: new Date().toISOString(),
+        };
+        updateJobStatus(row.id, row.status, u);
+      }
+    );
+
+    channel.subscribe();
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [isAuthenticated]); // stable dep — never re-runs because of a jobs update
 
   const filtered = jobs.filter((j) =>
     tab === "active" ? ACTIVE_STATUSES.includes(j.status) : COMPLETE_STATUSES.includes(j.status)
@@ -24,7 +99,7 @@ export default function JobsScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>My Jobs</Text>
-        <Text style={styles.sub}>{jobs.length > 0 ? `${jobs.length} total` : "Track your requests"}</Text>
+        <Text style={styles.sub}>{jobs.length > 0 ? `${jobs.length} total` : "Track your enquiries"}</Text>
       </View>
 
       <View style={styles.tabRow}>
@@ -42,6 +117,25 @@ export default function JobsScreen() {
         ))}
       </View>
 
+      {emailPendingConfirmation && !isAuthenticated && (
+        <View style={styles.confirmBanner}>
+          <Text style={styles.confirmBannerText}>
+            Check your email and tap the confirmation link to activate your account.
+          </Text>
+        </View>
+      )}
+      {guestMode && !isAuthenticated && jobs.length > 0 && (
+        <View style={styles.guestBanner}>
+          <Text style={styles.guestBannerText}>
+            Guest enquiries are only saved on this device for 24 hours.{" "}
+            <Text style={styles.guestBannerLink} onPress={() => router.push("/inquiry/signup" as any)}>
+              Create an account
+            </Text>
+            {" "}to keep track of your jobs.
+          </Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -53,12 +147,12 @@ export default function JobsScreen() {
             </Text>
             <Text style={styles.emptyBody}>
               {tab === "active"
-                ? "Got something that needs fixing? Start an inquiry."
+                ? "Got something that needs fixing? Start an enquiry."
                 : "Completed jobs will appear here."}
             </Text>
             {tab === "active" && (
               <Button
-                label="Start an Inquiry"
+                label="Start an Enquiry"
                 onPress={() => router.push("/inquiry/type")}
                 style={{ marginTop: 20, width: "100%" }}
               />
@@ -69,17 +163,43 @@ export default function JobsScreen() {
             const tone = statusTone(job.status);
             const pill = STATUS_PILL_COLORS[tone];
             return (
-              <TouchableOpacity key={job.id} style={styles.card} activeOpacity={0.85}>
+              <TouchableOpacity
+                key={job.id}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/job/${job.id}`)}
+              >
                 <View style={{ flex: 1 }}>
                   <View style={styles.cardMeta}>
-                    <Text style={styles.cardType}>{job.type === "issue" ? "ISSUE" : "INQUIRY"}</Text>
+                    <Text style={styles.cardType}>{job.type === "issue" ? "ISSUE" : "ENQUIRY"}</Text>
                     <Text style={styles.cardDot}>·</Text>
                     <Text style={styles.cardCat}>{job.category}</Text>
                   </View>
                   <Text style={styles.cardDesc} numberOfLines={2}>{job.description}</Text>
+                  {job.photos && job.photos.length > 0 && (
+                    <View style={styles.thumbRow}>
+                      {job.photos.slice(0, 3).map((uri, i) => {
+                        const isLast = i === 2 && job.photos.length > 3;
+                        return (
+                          <View key={i} style={styles.thumbWrap}>
+                            <Image
+                              source={{ uri }}
+                              style={styles.thumb}
+                              resizeMode="cover"
+                            />
+                            {isLast && (
+                              <View style={styles.thumbOverlay}>
+                                <Text style={styles.thumbOverlayText}>+{job.photos.length - 3}</Text>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                   <View style={[styles.pill, { backgroundColor: pill.bg }]}>
                     <Text style={[styles.pillText, { color: pill.text }]}>
-                      {STATUS_DISPLAY[job.status]}
+                      {job.status}
                     </Text>
                   </View>
                 </View>
@@ -101,17 +221,22 @@ const styles = StyleSheet.create({
   title:         { color: colors.white, fontSize: 32, fontWeight: "800", letterSpacing: -0.6, lineHeight: 38 },
   sub:           { color: colors.muted, fontSize: 14, fontWeight: "400", marginTop: 4 },
   tabRow: {
-    flexDirection:   "row",
+    flexDirection:    "row",
     marginHorizontal: 22,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius:    16,
-    padding:         4,
-    marginBottom:    18,
+    backgroundColor:  "rgba(255,255,255,0.07)",
+    borderRadius:     16,
+    padding:          4,
+    marginBottom:     18,
   },
   tab:           { flex: 1, paddingVertical: 11, borderRadius: 13, alignItems: "center" },
   tabActive:     { backgroundColor: colors.amber, shadowColor: colors.amber, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   tabText:       { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 13 },
   tabTextActive: { color: colors.navy },
+  confirmBanner:     { marginHorizontal: 22, marginBottom: 14, backgroundColor: "rgba(16,185,129,0.08)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(16,185,129,0.2)" },
+  confirmBannerText: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  guestBanner:     { marginHorizontal: 22, marginBottom: 14, backgroundColor: "rgba(245,158,11,0.08)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(245,158,11,0.18)" },
+  guestBannerText: { color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  guestBannerLink: { color: colors.amber, fontWeight: "600" },
   scroll:        { paddingHorizontal: 22, paddingBottom: 110 },
   empty: {
     backgroundColor: "rgba(255,255,255,0.05)",
@@ -144,6 +269,11 @@ const styles = StyleSheet.create({
   cardDot:       { color: colors.muted, fontSize: 10 },
   cardCat:       { color: colors.slate, fontSize: 12, fontWeight: "400" },
   cardDesc:      { color: colors.navy, fontWeight: "800", fontSize: 15, marginBottom: 10, lineHeight: 22 },
+  thumbRow:      { flexDirection: "row", gap: 6, marginBottom: 10 },
+  thumbWrap:     { position: "relative" },
+  thumb:         { width: 64, height: 64, borderRadius: 8, backgroundColor: "rgba(15,23,42,0.06)" },
+  thumbOverlay:  { position: "absolute", inset: 0, borderRadius: 8, backgroundColor: "rgba(15,23,42,0.55)", alignItems: "center", justifyContent: "center" },
+  thumbOverlayText: { color: colors.white, fontSize: 13, fontWeight: "700" },
   pill:          { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   pillText:      { fontSize: 11, fontWeight: "600" },
   chevronWrap:   { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(15,23,42,0.05)", alignItems: "center", justifyContent: "center" },
