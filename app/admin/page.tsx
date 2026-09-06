@@ -80,6 +80,7 @@ export default function AdminDashboard() {
   const [msgLoading, setMsgLoading] = useState(false)
   const [msgError, setMsgError]     = useState<string | null>(null)
   const [draft, setDraft]           = useState("")
+  const [sending, setSending]       = useState(false)
   const [unreadMap, setUnreadMap]   = useState<Record<string, boolean>>({})
   const msgEndRef = useRef<HTMLDivElement>(null)
 
@@ -182,9 +183,10 @@ export default function AdminDashboard() {
 
   const sendMessage = async () => {
     const body = draft.trim()
-    if (!body || !selectedJob) return
+    if (!body || !selectedJob || sending) return
     setDraft("")
     setMsgError(null)
+    setSending(true)
     try {
       const res  = await fetch(`/api/admin/jobs/${selectedJob.id}/messages`, {
         method: "POST",
@@ -193,10 +195,11 @@ export default function AdminDashboard() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Send failed")
-      // Append the persisted message returned by the API (has real id + created_at)
       if (data.message) setMessages((prev) => [...prev, data.message as Message])
     } catch (e: any) {
       setMsgError(e.message ?? "Failed to send message — check Vercel logs")
+    } finally {
+      setSending(false)
     }
     setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
   }
@@ -566,9 +569,9 @@ export default function AdminDashboard() {
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                     placeholder="Reply to customer…"
                     className="flex-1 px-3 py-2 rounded-lg input-field placeholder:text-[#94A3B8] focus:outline-none text-sm" />
-                  <button onClick={sendMessage} disabled={!draft.trim() || saving}
+                  <button onClick={sendMessage} disabled={!draft.trim() || sending}
                     className="px-3 py-2 rounded-lg btn-primary disabled:cursor-not-allowed disabled:opacity-50">
-                    <Send className="h-4 w-4" />
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
