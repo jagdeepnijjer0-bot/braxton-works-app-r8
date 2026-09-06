@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import {
   LayoutDashboard, Clock, CheckCircle, AlertCircle, Search, Filter,
@@ -10,10 +12,23 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
 import { JOURNEY_STEPS, nextStatus, statusTone, STATUS_PILL_CLASSES, statusPillClass, type JobStatus } from "@/lib/status"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Lazy singleton — deferred until first use so module evaluation during
+// static build analysis doesn't throw when env vars are absent.
+let _supabase: ReturnType<typeof createClient> | null = null
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return _supabase
+}
+const supabase = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_t, prop) {
+    return (getSupabase() as any)[prop]
+  },
+})
 
 type FilterStatus = "all" | JobStatus
 

@@ -45,6 +45,16 @@ export const STATUS_PILL_CLASSES: Record<StatusTone, string> = {
   cancelled: "bg-red-50 text-red-600",
 }
 
+export const STATUS_DISPLAY: Record<JobStatus, string> = {
+  "Enquiry Received":    "Enquiry Received",
+  "Assigning Contractor": "Assigning Contractor",
+  "Contractor Assigned": "Contractor Assigned",
+  "Quote Ready":         "Quote Ready",
+  "Job Underway":        "Job Underway",
+  "Job Completed":       "Job Completed",
+  "Cancelled":           "Cancelled",
+}
+
 export const ACTIVE_STATUSES: JobStatus[] = [
   "Enquiry Received", "Assigning Contractor", "Contractor Assigned",
   "Quote Ready", "Job Underway",
