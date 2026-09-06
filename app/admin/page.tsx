@@ -78,6 +78,7 @@ export default function AdminDashboard() {
   // Messaging
   const [messages, setMessages] = useState<Message[]>([])
   const [msgLoading, setMsgLoading] = useState(false)
+  const [msgError, setMsgError]     = useState<string | null>(null)
   const [draft, setDraft]           = useState("")
   const [unreadMap, setUnreadMap]   = useState<Record<string, boolean>>({})
   const msgEndRef = useRef<HTMLDivElement>(null)
@@ -107,13 +108,17 @@ export default function AdminDashboard() {
 
     const load = async () => {
       setMsgLoading(true)
-      const { data } = await supabase
-        .from("messages")
-        .select("id, body, sender, created_at")
-        .eq("job_id", selectedJob.id)
-        .order("created_at", { ascending: true })
-      setMessages((data ?? []) as Message[])
-      setMsgLoading(false)
+      setMsgError(null)
+      try {
+        const res  = await fetch(`/api/admin/jobs/${selectedJob.id}/messages`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? "Failed to load messages")
+        setMessages((data.messages ?? []) as Message[])
+      } catch (e: any) {
+        setMsgError(e.message ?? "Failed to load messages")
+      } finally {
+        setMsgLoading(false)
+      }
       // Mark read
       setUnreadMap((m) => ({ ...m, [selectedJob.id]: false }))
       setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100)
@@ -179,13 +184,20 @@ export default function AdminDashboard() {
     const body = draft.trim()
     if (!body || !selectedJob) return
     setDraft("")
-    const optimistic: Message = { id: `opt-${Date.now()}`, body, sender: "contractor", created_at: new Date().toISOString() }
-    setMessages((prev) => [...prev, optimistic])
-    await fetch(`/api/admin/jobs/${selectedJob.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
-    })
+    setMsgError(null)
+    try {
+      const res  = await fetch(`/api/admin/jobs/${selectedJob.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Send failed")
+      // Append the persisted message returned by the API (has real id + created_at)
+      if (data.message) setMessages((prev) => [...prev, data.message as Message])
+    } catch (e: any) {
+      setMsgError(e.message ?? "Failed to send message — check Vercel logs")
+    }
     setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
   }
 
@@ -542,6 +554,11 @@ export default function AdminDashboard() {
                   }
                   <div ref={msgEndRef} />
                 </div>
+                {msgError && (
+                  <p className="px-4 py-2 text-xs font-semibold text-red-600 bg-red-50 border-t border-red-100">
+                    ⚠ {msgError}
+                  </p>
+                )}
                 <div className="border-t border-[#E2E8F0] p-3 flex gap-2">
                   <input
                     value={draft}

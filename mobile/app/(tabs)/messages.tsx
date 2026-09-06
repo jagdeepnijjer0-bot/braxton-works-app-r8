@@ -162,18 +162,36 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
 export default function MessagesScreen() {
   const router = useRouter();
   const { jobs } = useApp();
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  // Auto-select the most recent job so the user lands directly in the chat thread.
+  // If they have multiple jobs, show a back button to switch between them.
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(
+    jobs.length === 1 ? jobs[0].id : null
+  );
+
+  // Keep auto-selection in sync if jobs load asynchronously after mount.
+  const prevJobsLen = useState(jobs.length)[0];
+  if (jobs.length === 1 && !selectedJobId) {
+    setSelectedJobId(jobs[0].id);
+  }
 
   if (selectedJobId) {
     const job = jobs.find((j) => j.id === selectedJobId);
+    const showBack = jobs.length > 1;
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.threadNav}>
-          <TouchableOpacity style={styles.back} onPress={() => setSelectedJobId(null)}>
-            <ArrowLeft color="rgba(255,255,255,0.7)" size={18} />
-            <Text style={styles.backText}>Messages</Text>
-          </TouchableOpacity>
-        </View>
+        {showBack && (
+          <View style={styles.threadNav}>
+            <TouchableOpacity style={styles.back} onPress={() => setSelectedJobId(null)}>
+              <ArrowLeft color="rgba(255,255,255,0.7)" size={18} />
+              <Text style={styles.backText}>All jobs</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!showBack && (
+          <View style={styles.header}>
+            <Text style={styles.title}>Messages</Text>
+          </View>
+        )}
         {job && <ChatThread jobId={job.id} category={job.category} />}
       </SafeAreaView>
     );
