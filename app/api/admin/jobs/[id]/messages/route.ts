@@ -24,6 +24,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[admin/messages GET] SUPABASE_SERVICE_ROLE_KEY is not set")
+      return NextResponse.json({ error: "Server misconfiguration: missing service role key" }, { status: 500 })
+    }
+
     const supabase = createAdminClient()
 
     const { data, error } = await supabase
@@ -33,13 +39,13 @@ export async function GET(
       .order("created_at", { ascending: true })
 
     if (error) {
-      console.error("Admin messages fetch error:", error.message)
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
+      console.error("[admin/messages GET] fetch error:", error.message, error.code)
+      return NextResponse.json({ error: `Failed to fetch messages: ${error.message}` }, { status: 500 })
     }
 
     return NextResponse.json({ messages: data ?? [] })
   } catch (err) {
-    console.error("Admin messages GET error:", err)
+    console.error("[admin/messages GET] unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

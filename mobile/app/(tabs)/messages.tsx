@@ -165,14 +165,16 @@ export default function MessagesScreen() {
   // null = show job list; a job id = show that chat thread.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // Auto-select the only job so the user lands directly in the chat.
-  // Runs whenever `jobs` changes so it also catches jobs that load after mount.
+  // Auto-select when there is exactly one job. Re-runs when the jobs list
+  // changes (e.g. loads asynchronously after mount). Only auto-selects — never
+  // clears a manual selection the user made.
   useEffect(() => {
-    if (jobs.length === 1) setSelectedJobId(jobs[0].id);
-  }, [jobs]);
+    if (jobs.length === 1 && !selectedJobId) setSelectedJobId(jobs[0].id);
+  }, [jobs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (selectedJobId) {
-    const job = jobs.find((j) => j.id === selectedJobId);
+  const job = jobs.find((j) => j.id === selectedJobId);
+
+  if (selectedJobId && job) {
     const showBack = jobs.length > 1;
     return (
       <SafeAreaView style={styles.safe}>
@@ -189,7 +191,7 @@ export default function MessagesScreen() {
             <Text style={styles.title}>Messages</Text>
           </View>
         )}
-        {job && <ChatThread jobId={job.id} category={job.category} />}
+        <ChatThread jobId={job.id} category={job.category} />
       </SafeAreaView>
     );
   }
