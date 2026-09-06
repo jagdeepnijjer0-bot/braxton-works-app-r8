@@ -11,7 +11,7 @@ import type { NextRequest } from "next/server";
 //
 // In development, set them in .env.local.
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Protect the admin dashboard and all admin API routes.
