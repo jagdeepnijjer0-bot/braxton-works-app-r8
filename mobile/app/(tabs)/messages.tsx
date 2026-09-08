@@ -8,7 +8,7 @@ import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabase";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Message {
   id:         string;
@@ -162,25 +162,24 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
 export default function MessagesScreen() {
   const router = useRouter();
   const { jobs } = useApp();
-  // null = show job list; a job id = show that chat thread.
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // Auto-select when there is exactly one job. Re-runs when the jobs list
-  // changes (e.g. loads asynchronously after mount). Only auto-selects — never
-  // clears a manual selection the user made.
+  // selectedJob holds the full job object — not just an ID — so ChatThread
+  // never depends on a secondary jobs.find() that can return undefined during
+  // the render cycle when jobs loads asynchronously.
+  const [selectedJob, setSelectedJob] = useState<typeof jobs[0] | null>(null);
+
+  // Auto-select when there is exactly one job. Re-runs when job count changes.
   useEffect(() => {
-    if (jobs.length === 1 && !selectedJobId) setSelectedJobId(jobs[0].id);
+    if (jobs.length === 1 && !selectedJob) setSelectedJob(jobs[0]);
   }, [jobs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const job = jobs.find((j) => j.id === selectedJobId);
-
-  if (selectedJobId && job) {
+  if (selectedJob) {
     const showBack = jobs.length > 1;
     return (
       <SafeAreaView style={styles.safe}>
         {showBack && (
           <View style={styles.threadNav}>
-            <TouchableOpacity style={styles.back} onPress={() => setSelectedJobId(null)}>
+            <TouchableOpacity style={styles.back} onPress={() => setSelectedJob(null)}>
               <ArrowLeft color="rgba(255,255,255,0.7)" size={18} />
               <Text style={styles.backText}>All jobs</Text>
             </TouchableOpacity>
@@ -191,7 +190,7 @@ export default function MessagesScreen() {
             <Text style={styles.title}>Messages</Text>
           </View>
         )}
-        <ChatThread jobId={job.id} category={job.category} />
+        <ChatThread jobId={selectedJob.id} category={selectedJob.category} />
       </SafeAreaView>
     );
   }
@@ -228,7 +227,7 @@ export default function MessagesScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.threadCard}
-              onPress={() => setSelectedJobId(item.id)}
+              onPress={() => setSelectedJob(item)}
               activeOpacity={0.85}
             >
               <View style={styles.threadAvatar}>
