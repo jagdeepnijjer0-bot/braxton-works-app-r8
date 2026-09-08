@@ -1,7 +1,8 @@
 import {
-  View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, ScrollView,
+  View, Text, StyleSheet, FlatList, TextInput, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MessageSquare, Send, ArrowLeft } from "lucide-react-native";
 import { colors } from "@/lib/colors";
@@ -177,7 +178,7 @@ export default function MessagesScreen() {
   if (selectedJob) {
     const showBack = jobs.length > 1;
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={["top"]}>
         {showBack && (
           <View style={styles.threadNav}>
             <TouchableOpacity style={styles.back} onPress={() => setSelectedJob(null)}>
@@ -197,7 +198,7 @@ export default function MessagesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
         <Text style={styles.sub}>Stay in touch with your contractor</Text>
