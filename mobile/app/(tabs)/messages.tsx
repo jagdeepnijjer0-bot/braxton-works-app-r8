@@ -105,6 +105,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
         ref={listRef}
         data={messages}
         keyExtractor={(m) => m.id}
+        style={{ flex: 1 }}
         contentContainerStyle={thread.list}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
