@@ -318,6 +318,7 @@ const thread = StyleSheet.create({
     paddingVertical:  12,
     borderTopWidth:   1,
     borderTopColor:   "rgba(255,255,255,0.07)",
+    backgroundColor:  "red",
   },
   textInput: {
     flex:              1,
