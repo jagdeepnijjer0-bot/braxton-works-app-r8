@@ -2,7 +2,7 @@ import {
   View, Text, StyleSheet, FlatList, TextInput, ScrollView,
   TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MessageSquare, Send, ArrowLeft } from "lucide-react-native";
 import { colors } from "@/lib/colors";
@@ -24,6 +24,8 @@ function formatTime(iso: string) {
 }
 
 function ChatThread({ jobId, category }: { jobId: string; category: string }) {
+  const insets = useSafeAreaInsets();
+  const bottomOffset = insets.bottom + 49;
   const [messages,  setMessages]  = useState<Message[]>([]);
   const [draft,     setDraft]     = useState("");
   const [loading,   setLoading]   = useState(true);
@@ -95,7 +97,7 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={90}
+      keyboardVerticalOffset={bottomOffset}
     >
       <View style={thread.header}>
         <View style={thread.dot} />
@@ -164,6 +166,8 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
 export default function MessagesScreen() {
   const router = useRouter();
   const { jobs } = useApp();
+  const insets = useSafeAreaInsets();
+  const bottomOffset = insets.bottom + 49;
 
   // selectedJob holds the full job object — not just an ID — so ChatThread
   // never depends on a secondary jobs.find() that can return undefined during
@@ -192,7 +196,9 @@ export default function MessagesScreen() {
             <Text style={styles.title}>Messages</Text>
           </View>
         )}
-        <ChatThread jobId={selectedJob.id} category={selectedJob.category} />
+        <View style={{ flex: 1, paddingBottom: bottomOffset }}>
+          <ChatThread jobId={selectedJob.id} category={selectedJob.category} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -318,7 +324,7 @@ const thread = StyleSheet.create({
     paddingVertical:  12,
     borderTopWidth:   1,
     borderTopColor:   "rgba(255,255,255,0.07)",
-    backgroundColor:  "red",
+    backgroundColor:  colors.navy,
   },
   textInput: {
     flex:              1,
