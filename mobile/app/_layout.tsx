@@ -322,10 +322,11 @@ function AppBootstrap({ children }: { children: ReactNode }) {
                 }
               }
             } catch { /* non-fatal */ }
-            // Register push token for guest jobs (fire-and-forget).
-            if (guestIds.length > 0) {
-              registerPushToken(guestIds).then((t) => { if (t) setPushToken(t); });
-            }
+            // Register push token — always request permission on first launch,
+            // pass job IDs only when present so the DB rows are created.
+            registerPushToken(guestIds.length > 0 ? guestIds : undefined)
+              .then((t) => { if (t) setPushToken(t); })
+              .catch(() => {});
           }
         } catch { /* session restore is non-fatal */ }
       } catch (e) {
