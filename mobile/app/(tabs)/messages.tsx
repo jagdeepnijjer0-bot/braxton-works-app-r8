@@ -79,7 +79,10 @@ function ChatThread({ jobId, category }: { jobId: string; category: string }) {
 
     try {
       const { error } = await supabase.from("messages").insert({ job_id: jobId, body, sender: "user" });
-      if (error) setSendError("Message couldn't be sent — check your connection.");
+      if (error) {
+        console.warn("[messages] send error:", error.code, error.message, JSON.stringify(error.details));
+        setSendError("Message couldn't be sent — check your connection.");
+      }
     } catch {
       setSendError("Message couldn't be sent — check your connection.");
     }

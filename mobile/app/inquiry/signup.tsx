@@ -125,6 +125,9 @@ export default function SignUpScreen() {
         submittedJob = newJob;
 
         if (needsConfirmation) {
+          // Save marketing consent so handleAuthCallback can write it after confirmation.
+          AsyncStorage.setItem("pending_marketing_consent", JSON.stringify(marketingConsent)).catch(() => {});
+
           // Email confirmation required — don't insert into Supabase yet.
           // Inserting with user_id=null and then trying to UPDATE it after
           // confirmation is blocked by RLS (user_id IS NULL ≠ auth.uid()).

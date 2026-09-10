@@ -133,6 +133,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
       if (url.includes("code=")) {
         // PKCE flow — authorization code in query string
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+        if (error) console.warn("[auth-callback] exchangeCodeForSession error:", error.message);
         if (!error && data.session) session = data.session;
       } else {
         // Implicit flow — tokens in hash fragment
@@ -140,17 +141,30 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
           const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) console.warn("[auth-callback] setSession error:", error.message);
           if (!error && data.session) session = data.session;
         }
       }
     } catch (e) {
       console.error("[auth-callback] failed to exchange session:", e);
-      return;
+    }
+
+    // Fallback: the exchange may have established a session even if it returned an error
+    // (e.g. PKCE code-verifier mismatch on re-tap), or the app may have been cold-started
+    // after Supabase already persisted the session. Check current session state.
+    if (!session) {
+      try {
+        const { data: { session: existing } } = await supabase.auth.getSession();
+        if (existing) session = existing;
+      } catch (e) {
+        console.warn("[auth-callback] getSession fallback failed:", e);
+      }
     }
 
     if (!session) return;
 
     setIsAuthenticated(true);
+    setGuestMode(false);
     setEmailPendingConfirmation(false);
 
     if (isRecovery) {
@@ -200,6 +214,26 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     }
 
     await fetchUserJobs(session.user.id);
+
+    // Apply pending marketing consent saved during sign-up (before email was confirmed).
+    try {
+      const raw = await AsyncStorage.getItem("pending_marketing_consent");
+      await AsyncStorage.removeItem("pending_marketing_consent").catch(() => {});
+      if (raw !== null) {
+        const consent = JSON.parse(raw) as boolean;
+        supabase.from("user_profiles").upsert(
+          {
+            user_id:              session.user.id,
+            marketing_consent:    consent,
+            marketing_consent_at: consent ? new Date().toISOString() : null,
+          },
+          { onConflict: "user_id" }
+        ).then(({ error: e }) => { if (e) console.warn("[auth-callback] marketing consent write error:", e.message); })
+         .catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[auth-callback] marketing consent restore failed:", e);
+    }
 
     router.replace("/(tabs)/profile");
   }, []);
