@@ -56,6 +56,11 @@
         }
       ]
     ],
-    "scheme": "tradenest"
+    "scheme": "tradenest",
+    "extra": {
+      "eas": {
+        "projectId": "75e03958-f7bd-4757-b6fb-99bb03a4be3b"
+      }
+    }
   }
 }
