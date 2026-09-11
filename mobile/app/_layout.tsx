@@ -1,4 +1,4 @@
-import "@/lib/polyfills"; // crypto polyfill — must be first
+import "@/lib/polyfills"; // crypto polyfill - must be first
 import * as SplashScreen from "expo-splash-screen";
 import * as Linking from "expo-linking";
 import { Stack, useRouter } from "expo-router";
@@ -19,7 +19,7 @@ import type { ReactNode } from "react";
 // guard so it is definitely set before any component renders.
 SplashScreen.preventAutoHideAsync();
 
-// ─── Error boundary ──────────────────────────────────────────────────────────
+// --- Error boundary ------------------------------------------------------------
 class ErrorBoundary extends Component
   { children: ReactNode },
   { error: Error | null; componentStack: string }
@@ -36,13 +36,13 @@ class ErrorBoundary extends Component
     if (this.state.error) {
       const err  = this.state.error as Error;
       const body = [
-        "── MESSAGE ──",
+        "-- MESSAGE --",
         err.message ?? "(none)",
         "",
-        "── JS STACK ──",
+        "-- JS STACK --",
         err.stack    ?? "(none)",
         "",
-        "── COMPONENT STACK ──",
+        "-- COMPONENT STACK --",
         this.state.componentStack || "(none)",
       ].join("\n");
       return (
@@ -50,7 +50,7 @@ class ErrorBoundary extends Component
           {/* Fixed header */}
           <View style={{ paddingTop: 60, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: "#0f172a" }}>
             <Text style={{ color: "#F59E0B", fontSize: 15, fontWeight: "800", marginBottom: 4 }}>
-              App crash — screenshot this screen
+              App crash - screenshot this screen
             </Text>
             <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>
               Scroll down to read the full stack trace
@@ -76,8 +76,8 @@ class ErrorBoundary extends Component
   }
 }
 
-// ─── App bootstrap ────────────────────────────────────────────────────────────
-// IMPORTANT: always renders {children} — the <Stack> must be mounted from the
+// --- App bootstrap --------------------------------------------------------------
+// IMPORTANT: always renders {children} - the <Stack> must be mounted from the
 // very first render so Expo Router can resolve routes and handle navigation.
 // We extend the native splash screen instead of showing a JS loading screen,
 // so the user sees the proper branded splash (not a frozen spinner) during boot.
@@ -131,12 +131,12 @@ function AppBootstrap({ children }: { children: ReactNode }) {
 
     try {
       if (url.includes("code=")) {
-        // PKCE flow — authorization code in query string
+        // PKCE flow - authorization code in query string
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
         if (error) console.warn("[auth-callback] exchangeCodeForSession error:", error.message);
         if (!error && data.session) session = data.session;
       } else {
-        // Implicit flow — tokens in hash fragment
+        // Implicit flow - tokens in hash fragment
         const accessToken  = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
@@ -168,13 +168,13 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     setEmailPendingConfirmation(false);
 
     if (isRecovery) {
-      // Password recovery — send the user to set a new password.
+      // Password recovery - send the user to set a new password.
       // Do not claim guest jobs on this path.
       router.replace("/auth/reset-password");
       return;
     }
 
-    // Email confirmation — insert the pending job (saved locally during signup)
+    // Email confirmation - insert the pending job (saved locally during signup)
     // with the now-confirmed user_id. Inserting with the correct user_id avoids
     // the RLS issue where UPDATE on user_id=null rows is blocked.
     try {
@@ -203,7 +203,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           supabase.from("messages")
             .insert({
               job_id: pendingJob.id,
-              body:   "Thanks for your enquiry — we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.",
+              body:   "Thanks for your enquiry - we've received it and we're on it. Your job is now being assigned to one of our verified contractors. You can track every step by tapping My Jobs at the bottom of your screen. We'll message you here as soon as there's an update.",
               sender: "contractor",
             })
             .catch(() => {});
@@ -262,7 +262,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl) await handleAuthCallback(initialUrl);
 
-        // Restore auth session (best-effort — non-fatal if it fails/hangs).
+        // Restore auth session (best-effort - non-fatal if it fails/hangs).
         // If getSession returns an error (e.g. stale/invalid refresh token left
         // by a partial sign-out), clear the local session so subsequent auth
         // calls start clean rather than hitting "Invalid Refresh Token".
@@ -271,7 +271,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           if (error) {
             // Only sign out on auth-specific errors that indicate an unrecoverable
             // session (e.g. invalid refresh token stored locally). Do NOT sign out
-            // on network/timeout errors — that would clear a valid session just
+            // on network/timeout errors - that would clear a valid session just
             // because the device had no connectivity at launch.
             const msg = error.message?.toLowerCase() ?? "";
             const isAuthError = msg.includes("refresh token") || msg.includes("invalid") || msg.includes("expired");
@@ -322,7 +322,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
                 }
               }
             } catch { /* non-fatal */ }
-            // Guests have no user_id — associate the token with each local job ID directly.
+            // Guests have no user_id - associate the token with each local job ID directly.
             registerPushToken()
               .then((t) => {
                 if (!t) return;
@@ -351,9 +351,9 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
       if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user?.id) {
-        // Clear guest mode — signed-in users are not guests.
+        // Clear guest mode - signed-in users are not guests.
         setGuestMode(false);
-        // Replace jobs with this user's own Supabase jobs — never merge with guest/stale jobs.
+        // Replace jobs with this user's own Supabase jobs - never merge with guest/stale jobs.
         fetchUserJobs(session.user.id).then(() => {
           registerPushToken().catch(() => {});
         });
@@ -384,12 +384,12 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Always render children — never return null or replace with a spinner here.
+  // Always render children - never return null or replace with a spinner here.
   // The Stack must be mounted from the first render for Expo Router to work.
   return <>{children}</>;
 }
 
-// ─── Root layout ──────────────────────────────────────────────────────────────
+// --- Root layout ------------------------------------------------------------------
 export default function RootLayout() {
   return (
     <ErrorBoundary>
