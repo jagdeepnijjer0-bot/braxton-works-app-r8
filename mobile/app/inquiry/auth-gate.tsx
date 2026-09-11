@@ -84,7 +84,7 @@ export default function AuthGateScreen() {
     // ── Fire-and-forget: welcome message + push token ─────────────────────
     const sendAfterwork = async () => {
       try {
-        const token = pushToken ?? await registerPushToken(jobId).then((t) => {
+        const token = pushToken ?? await registerPushToken().then((t) => {
           if (t) setPushToken(t);
           return t;
         });
@@ -95,7 +95,7 @@ export default function AuthGateScreen() {
           ),
           token
             ? withTimeout(
-                supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
+                supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token,job_id" }),
                 TIMEOUT_MS
               )
             : Promise.resolve(),

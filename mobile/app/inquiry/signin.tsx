@@ -139,22 +139,11 @@ export default function SignInScreen() {
               await uploadJobPhotos(jobId, inquiry.photos, `${userId}/${jobId}`);
             }
 
-            const token = pushToken ?? await registerPushToken(jobId).then((t) => {
-              if (t) setPushToken(t);
-              return t;
-            });
-            await Promise.allSettled([
-              withTimeout(
-                supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
-                TIMEOUT_MS
-              ),
-              token
-                ? withTimeout(
-                    supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token" }),
-                    TIMEOUT_MS
-                  )
-                : Promise.resolve(),
-            ]);
+            registerPushToken().then((t) => { if (t) setPushToken(t); }).catch(() => {});
+            await withTimeout(
+              supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
+              TIMEOUT_MS
+            ).catch(() => {});
           } catch (e) {
             console.error("[signin] sendAfterwork error:", e);
           }

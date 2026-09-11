@@ -20,7 +20,7 @@ import type { ReactNode } from "react";
 SplashScreen.preventAutoHideAsync();
 
 // ─── Error boundary ──────────────────────────────────────────────────────────
-class ErrorBoundary extends Component<
+class ErrorBoundary extends Component
   { children: ReactNode },
   { error: Error | null; componentStack: string }
 > {
@@ -284,9 +284,9 @@ function AppBootstrap({ children }: { children: ReactNode }) {
           } else if (session) {
             setIsAuthenticated(true);
             // Fetch authenticated user's jobs from Supabase on boot.
-            const jobIds = await fetchUserJobs(session.user.id);
-            // Register push token linked to all the user's jobs (fire-and-forget).
-            registerPushToken(jobIds).then((t) => { if (t) setPushToken(t); });
+            await fetchUserJobs(session.user.id);
+            // Association is handled inside registerPushToken() via user_id.
+            registerPushToken().then((t) => { if (t) setPushToken(t); });
           } else {
             // Guest: restore recent (under-24h) enquiries from AsyncStorage,
             // then background-refresh their live status from Supabase so a
@@ -322,10 +322,18 @@ function AppBootstrap({ children }: { children: ReactNode }) {
                 }
               }
             } catch { /* non-fatal */ }
-            // Register push token — always request permission on first launch,
-            // pass job IDs only when present so the DB rows are created.
-            registerPushToken(guestIds.length > 0 ? guestIds : undefined)
-              .then((t) => { if (t) setPushToken(t); })
+            // Guests have no user_id — associate the token with each local job ID directly.
+            registerPushToken()
+              .then((t) => {
+                if (!t) return;
+                setPushToken(t);
+                if (guestIds.length > 0) {
+                  const rows = guestIds.map((job_id) => ({ token: t, job_id }));
+                  supabase.from("push_tokens")
+                    .upsert(rows, { onConflict: "token,job_id" })
+                    .catch(() => {});
+                }
+              })
               .catch(() => {});
           }
         } catch { /* session restore is non-fatal */ }
@@ -346,8 +354,8 @@ function AppBootstrap({ children }: { children: ReactNode }) {
         // Clear guest mode — signed-in users are not guests.
         setGuestMode(false);
         // Replace jobs with this user's own Supabase jobs — never merge with guest/stale jobs.
-        fetchUserJobs(session.user.id).then((ids) => {
-          if (ids.length > 0) registerPushToken(ids).catch(() => {});
+        fetchUserJobs(session.user.id).then(() => {
+          registerPushToken().catch(() => {});
         });
       } else if (event === "SIGNED_OUT") {
         // Clear authenticated jobs immediately, then restore any recent guest jobs.
