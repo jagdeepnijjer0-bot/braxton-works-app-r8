@@ -6,15 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tradenest.app",
+      "newArchEnabled": true,
       "infoPlist": {
         "NSCameraUsageDescription": "TradeNest needs camera access to take photos of your job.",
         "NSPhotoLibraryUsageDescription": "TradeNest needs photo library access to attach photos to your enquiry.",
@@ -29,6 +24,7 @@
         "backgroundColor": "#0F172A"
       },
       "package": "com.tradenest.app",
+      "newArchEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
@@ -40,6 +36,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0F172A"
+        }
+      ],
       [
         "expo-image-picker",
         {

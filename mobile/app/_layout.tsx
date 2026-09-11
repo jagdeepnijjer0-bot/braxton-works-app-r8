@@ -324,7 +324,7 @@ function AppBootstrap({ children }: { children: ReactNode }) {
     });
 
     const notifSub = addNotificationResponseListener((jobId) => {
-      if (jobId) router.push("/(tabs)/jobs");
+      if (jobId) router.push(`/job/${jobId}`);
       else        router.push("/(tabs)/messages");
     });
 
