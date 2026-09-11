@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import { supabase, withTimeout } from "./supabase";
 
 Notifications.setNotificationHandler({
@@ -35,9 +35,6 @@ export async function registerPushToken(): Promise<string | null> {
   }
   if (finalStatus !== "granted") return null;
 
-  // projectId is required by getExpoPushTokenAsync in Expo SDK 49+.
-  // It is injected by EAS Build into Constants.expoConfig.extra.eas.projectId
-  // and also available via Constants.easConfig.projectId in managed workflow.
   const projectId: string | undefined =
     (Constants.expoConfig?.extra?.eas?.projectId as string | undefined) ??
     (Constants.easConfig?.projectId as string | undefined);
@@ -49,32 +46,30 @@ export async function registerPushToken(): Promise<string | null> {
     );
     token = tokenData.data;
   } catch (e) {
-    console.error("[push] getExpoPushTokenAsync failed:", e);
+    Alert.alert("[push] getExpoPushTokenAsync failed", String(e));
     return null;
   }
 
-  // Use getSession() rather than getUser() — getSession() reads the locally
-  // persisted session with no network round-trip, so it is reliable during
-  // early app boot. getUser() revalidates against the Auth server and can
-  // return no user if that call is slow or hasn't resolved yet, which would
-  // silently skip writing the token row.
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user ?? null;
+
   if (!user) {
-    // Guest, not signed in — the token is returned to the caller, who is
-    // responsible for associating it with a job_id directly.
+    Alert.alert("[push] no user", `token: ${token.slice(0, 30)}…\nsession: ${session ? "present but no user" : "null"}`);
     return token;
   }
 
-  await withTimeout(
+  const { error: upsertErr } = await withTimeout(
     supabase.from("push_tokens").upsert(
       { token, user_id: user.id },
       { onConflict: "token,user_id" }
     ),
     10_000
-  ).catch((e) => {
-    console.error("[push] token upsert failed:", e);
-  });
+  ).catch((e: any) => ({ error: e }));
+
+  Alert.alert(
+    "[push] upsert result",
+    `user_id: ${user.id}\ntoken: ${token.slice(0, 30)}…\nerror: ${upsertErr ? JSON.stringify(upsertErr) : "none"}`
+  );
 
   return token;
 }
