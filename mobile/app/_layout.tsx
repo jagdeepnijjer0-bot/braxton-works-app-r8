@@ -323,9 +323,13 @@ function AppBootstrap({ children }: { children: ReactNode }) {
       handleAuthCallback(url);
     });
 
-    const notifSub = addNotificationResponseListener((jobId) => {
-      if (jobId) router.push(`/job/${jobId}`);
-      else        router.push("/(tabs)/messages");
+    const notifSub = addNotificationResponseListener((jobId, type) => {
+      if (jobId) {
+        const tab = type === "message" ? "messages" : "details";
+        router.push(`/job/${jobId}?tab=${tab}`);
+      } else {
+        router.push("/(tabs)/messages");
+      }
     });
 
     return () => {

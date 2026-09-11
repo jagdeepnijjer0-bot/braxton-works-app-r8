@@ -53,6 +53,8 @@ serve(async (req) => {
   let title:   string | null = null;
   let body:    string | null = null;
 
+  let notifType: "message" | "status" = "status";
+
   if (payload.table === "messages" && payload.type === "INSERT") {
     const msg = payload.record;
     // Only notify on contractor messages (i.e. admin → user).
@@ -60,6 +62,7 @@ serve(async (req) => {
     jobId = msg.job_id as string;
     title = "New message from Braxton Works";
     body  = (msg.body as string).slice(0, 120);
+    notifType = "message";
   } else if (payload.table === "jobs" && payload.type === "UPDATE") {
     const job    = payload.record;
     const oldJob = payload.old_record;
@@ -136,7 +139,7 @@ serve(async (req) => {
       title,
       body,
       sound: "default",
-      data:  { jobId },
+      data:  { jobId, type: notifType },
     }]);
   }
 

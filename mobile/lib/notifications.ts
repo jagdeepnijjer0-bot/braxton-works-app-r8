@@ -75,13 +75,16 @@ export async function registerPushToken(): Promise<string | null> {
 }
 
 export function addNotificationResponseListener(
-  handler: (jobId: string | null) => void
+  handler: (jobId: string | null, type: "message" | "status" | null) => void
 ) {
   if (Platform.OS === "web") {
     return { remove: () => {} };
   }
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as Record<string, string>;
-    handler(data?.jobId ?? null);
+    const notifType = (data?.type === "message" || data?.type === "status")
+      ? data.type
+      : null;
+    handler(data?.jobId ?? null, notifType);
   });
 }
