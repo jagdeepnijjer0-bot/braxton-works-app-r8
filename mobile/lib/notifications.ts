@@ -53,7 +53,13 @@ export async function registerPushToken(): Promise<string | null> {
     return null;
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use getSession() rather than getUser() — getSession() reads the locally
+  // persisted session with no network round-trip, so it is reliable during
+  // early app boot. getUser() revalidates against the Auth server and can
+  // return no user if that call is slow or hasn't resolved yet, which would
+  // silently skip writing the token row.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
   if (!user) {
     // Guest, not signed in — the token is returned to the caller, who is
     // responsible for associating it with a job_id directly.
