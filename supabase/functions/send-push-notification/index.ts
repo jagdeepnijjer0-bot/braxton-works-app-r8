@@ -74,20 +74,57 @@ serve(async (req) => {
 
   if (!jobId || !title || !body) return new Response("No-op", { status: 200 });
 
-  // Look up push tokens for this job.
-  const { data: tokenRows, error } = await supabase
-    .from("push_tokens")
-    .select("token")
-    .eq("job_id", jobId);
-
-  if (error) {
-    console.error("push_tokens lookup error:", error.message);
-    return new Response("DB error", { status: 500 });
+  // Look up the job's owning user_id (null for guest-submitted jobs).
+  let userId: string | null = null;
+  {
+    const { data: jobRow, error: jobErr } = await supabase
+      .from("jobs")
+      .select("user_id")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (jobErr) {
+      console.error("jobs lookup error:", jobErr.message);
+    } else if (jobRow) {
+      userId = (jobRow.user_id as string | null) ?? null;
+    }
   }
 
-  const tokens = (tokenRows ?? []).map((r) => r.token as string).filter(Boolean);
+  // Look up push tokens two ways and merge:
+  //  - guest tokens are keyed by job_id
+  //  - authenticated tokens are keyed by user_id
+  const tokenSet = new Set<string>();
+
+  {
+    const { data: byJob, error: byJobErr } = await supabase
+      .from("push_tokens")
+      .select("token")
+      .eq("job_id", jobId);
+    if (byJobErr) {
+      console.error("push_tokens (job_id) lookup error:", byJobErr.message);
+    } else {
+      for (const row of byJob ?? []) {
+        if (row.token) tokenSet.add(row.token as string);
+      }
+    }
+  }
+
+  if (userId) {
+    const { data: byUser, error: byUserErr } = await supabase
+      .from("push_tokens")
+      .select("token")
+      .eq("user_id", userId);
+    if (byUserErr) {
+      console.error("push_tokens (user_id) lookup error:", byUserErr.message);
+    } else {
+      for (const row of byUser ?? []) {
+        if (row.token) tokenSet.add(row.token as string);
+      }
+    }
+  }
+
+  const tokens = Array.from(tokenSet);
   if (tokens.length === 0) {
-    console.log("No push tokens for job:", jobId);
+    console.log("No push tokens for job:", jobId, "user:", userId);
     return new Response("No tokens", { status: 200 });
   }
 
