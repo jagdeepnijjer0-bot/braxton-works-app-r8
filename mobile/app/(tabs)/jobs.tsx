@@ -13,10 +13,11 @@ import type { JobUpdate } from "@/lib/context";
 
 type Tab = "active" | "completed";
 
-// Module-level counter — persists across component remounts (unlike a useRef).
+// Module-level counters — persist across component remounts (unlike a useRef).
 // Both old and new instances increment from the same counter, so they never
 // produce the same channel name and supabase.channel() always returns a fresh object.
 let _jobsChannelSeq = 0;
+let _guestChannelSeq = 0;
 
 export default function JobsScreen() {
   const router = useRouter();
@@ -94,8 +95,9 @@ export default function JobsScreen() {
     guestChannelRefs.current = [];
 
     for (const jobId of guestJobIds) {
+      _guestChannelSeq += 1;
       const ch = supabase
-        .channel(`guest-job-${jobId}`)
+        .channel(`guest-job-${jobId}-${_guestChannelSeq}`)
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${jobId}` },
