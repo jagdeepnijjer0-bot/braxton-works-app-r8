@@ -15,6 +15,12 @@ import type { JobUpdate } from "@/lib/context";
 
 const EMERALD = "#10B981";
 
+// Module-level counters ensure every channel() call gets a unique topic name,
+// preventing the "cannot add callbacks after subscribe()" crash when React
+// re-mounts (or the effect re-runs) while a previous channel is still active.
+let _jobDetailSeq  = 0;
+let _chatTabSeq    = 0;
+
 function formatStamp(iso: string) {
   const d = new Date(iso);
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) +
@@ -85,8 +91,9 @@ function ChatTab({ jobId, bottomOffset }: { jobId: string; bottomOffset: number 
 
     load();
 
+    _chatTabSeq += 1;
     channel = supabase
-      .channel(`messages:${jobId}`)
+      .channel(`messages:${jobId}-${_chatTabSeq}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `job_id=eq.${jobId}` },
@@ -244,8 +251,9 @@ export default function JobDetailScreen() {
   useEffect(() => {
     if (!id) return;
 
+    _jobDetailSeq += 1;
     const channel = supabase
-      .channel(`job-detail:${id}`)
+      .channel(`job-detail:${id}-${_jobDetailSeq}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${id}` },
