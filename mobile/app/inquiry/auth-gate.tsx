@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Alert } from "react-native";
+import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { colors } from "@/lib/colors";
 import { Button } from "@/components/ui/Button";
@@ -81,39 +81,30 @@ export default function AuthGateScreen() {
       );
     }
 
-    // ── Push token + welcome message ─────────────────────
-    // TEMPORARY DIAGNOSTIC: awaited here (not fire-and-forget) so we can
-    // confirm this completes before navigation, and see the actual result.
-    try {
-      const token = pushToken ?? await registerPushToken().then((t) => {
-        if (t) setPushToken(t);
-        return t;
-      });
-
-      const results = await Promise.allSettled([
-        withTimeout(
-          supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
-          TIMEOUT_MS
-        ),
-        token
-          ? withTimeout(
-              supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token,job_id" }),
-              TIMEOUT_MS
-            )
-          : Promise.resolve(),
-      ]);
-
-      const upsertResult = results[1];
-      Alert.alert(
-        "[guest push] diagnostic",
-        `token: ${token ? token.slice(0, 30) + "…" : "NULL"}\n` +
-        `jobId: ${jobId}\n` +
-        `upsert status: ${upsertResult.status}\n` +
-        `upsert detail: ${JSON.stringify(upsertResult.status === "fulfilled" ? upsertResult.value : upsertResult.reason)}`
-      );
-    } catch (e) {
-      Alert.alert("[guest push] diagnostic error", String(e));
-    }
+    // ── Fire-and-forget: welcome message + push token ─────────────────────
+    const sendAfterwork = async () => {
+      try {
+        const token = pushToken ?? await registerPushToken().then((t) => {
+          if (t) setPushToken(t);
+          return t;
+        });
+        await Promise.allSettled([
+          withTimeout(
+            supabase.from("messages").insert({ job_id: jobId, body: WELCOME_MSG, sender: "contractor" }),
+            TIMEOUT_MS
+          ),
+          token
+            ? withTimeout(
+                supabase.from("push_tokens").upsert({ job_id: jobId, token }, { onConflict: "token,job_id" }),
+                TIMEOUT_MS
+              )
+            : Promise.resolve(),
+        ]);
+      } catch (e) {
+        console.error("[auth-gate] sendAfterwork error:", e);
+      }
+    };
+    sendAfterwork(); // intentionally NOT awaited
 
     return jobId;
   };
