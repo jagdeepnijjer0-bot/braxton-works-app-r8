@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { Platform, Alert } from "react-native";
+import { Platform } from "react-native";
 import { supabase, withTimeout } from "./supabase";
 
 Notifications.setNotificationHandler({
@@ -46,7 +46,7 @@ export async function registerPushToken(): Promise<string | null> {
     );
     token = tokenData.data;
   } catch (e) {
-    Alert.alert("[push] getExpoPushTokenAsync failed", String(e));
+    console.error("[push] getExpoPushTokenAsync failed:", e);
     return null;
   }
 
@@ -54,37 +54,34 @@ export async function registerPushToken(): Promise<string | null> {
   const user = session?.user ?? null;
 
   if (!user) {
-    Alert.alert("[push] no user", `token: ${token.slice(0, 30)}…\nsession: ${session ? "present but no user" : "null"}`);
+    // Guest, not signed in — the token is returned to the caller, who is
+    // responsible for associating it with a job_id directly.
     return token;
   }
 
-  const { error: upsertErr } = await withTimeout(
+  await withTimeout(
     supabase.from("push_tokens").upsert(
       { token, user_id: user.id },
       { onConflict: "token,user_id" }
     ),
     10_000
-  ).catch((e: any) => ({ error: e }));
-
-  Alert.alert(
-    "[push] upsert result",
-    `user_id: ${user.id}\ntoken: ${token.slice(0, 30)}…\nerror: ${upsertErr ? JSON.stringify(upsertErr) : "none"}`
-  );
+  ).catch((e) => {
+    console.error("[push] token upsert failed:", e);
+  });
 
   return token;
 }
 
 export function addNotificationResponseListener(
-  handler: (jobId: string | null, type: "message" | "status" | null) => void
+  handler: (jobId: string | null, type: string | null) => void
 ) {
   if (Platform.OS === "web") {
     return { remove: () => {} };
   }
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as Record<string, string>;
-    const notifType = (data?.type === "message" || data?.type === "status")
-      ? data.type
-      : null;
-    handler(data?.jobId ?? null, notifType);
+    const jobId = data?.jobId ?? null;
+    const type = data?.type === "message" || data?.type === "status" ? data.type : null;
+    handler(jobId, type);
   });
 }
