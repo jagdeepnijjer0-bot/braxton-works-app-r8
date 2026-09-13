@@ -101,15 +101,15 @@ export default function ProfileScreen() {
             try {
               const { error } = await supabase.rpc("delete_my_account");
               if (error) {
-                Alert.alert("Error", "Couldn't delete your account. Please try again or contact support.");
+                Alert.alert("Error", `Couldn't delete your account.\n\n${error.code ?? ""} ${error.message ?? ""}\n${error.details ?? ""}`.trim());
                 console.error("[delete_account]", error);
                 return;
               }
               setIsAuthenticated(false);
               setProfile(null);
               router.replace("/(tabs)/");
-            } catch (e) {
-              Alert.alert("Error", "Couldn't delete your account. Please check your connection and try again.");
+            } catch (e: any) {
+              Alert.alert("Error", `Couldn't delete your account.\n\n${e?.message ?? String(e)}`);
               console.error("[delete_account]", e);
             }
           },
