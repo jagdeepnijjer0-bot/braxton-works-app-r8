@@ -25,10 +25,9 @@
       },
       "package": "com.tradenest.app",
       "newArchEnabled": true,
+      "versionCode": 3,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -48,7 +47,8 @@
         "expo-image-picker",
         {
           "photosPermission": "TradeNest needs photo library access to attach photos to your enquiry.",
-          "cameraPermission": "TradeNest needs camera access to take photos of your job."
+          "cameraPermission": "TradeNest needs camera access to take photos of your job.",
+          "mediaLibraryPermission": ""
         }
       ],
       [

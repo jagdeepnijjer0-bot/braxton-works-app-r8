@@ -22,11 +22,13 @@ export default function DescriptionScreen() {
   };
 
   const pickPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo library access to add photos to your enquiry.");
-      return;
-    }
+    // Android 13+: the system photo picker requires no runtime permission —
+    // launchImageLibraryAsync opens the picker directly. On iOS the permission
+    // prompt is handled by the OS when the user first grants library access;
+    // expo-image-picker surfaces a rejection via result.canceled, so no
+    // explicit requestMediaLibraryPermissionsAsync gate is needed on either
+    // platform. Removing the explicit Android check avoids the
+    // READ_MEDIA_IMAGES permission that Google Play no longer allows.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaType.Images,
       allowsMultipleSelection: false,
