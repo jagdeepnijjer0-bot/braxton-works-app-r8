@@ -142,6 +142,7 @@ export default function SignUpScreen() {
             guest_name:  name            || null,
             guest_phone: inquiry.phone   || null,
             guest_contact_preference: inquiry.contactPreference || null,
+            referral_source: inquiry.referralSource || null,
             source:      "app",
             created_at:  now,
             // InquiryPhoto objects (uri + base64) — uploaded to Storage in
@@ -167,6 +168,7 @@ export default function SignUpScreen() {
                 guest_name:  name            || null,
                 guest_phone: inquiry.phone   || null,
                 guest_contact_preference: inquiry.contactPreference || null,
+                referral_source: inquiry.referralSource || null,
                 source:      "app",
               }),
               TIMEOUT_MS

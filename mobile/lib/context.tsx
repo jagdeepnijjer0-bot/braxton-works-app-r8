@@ -27,6 +27,7 @@ export interface InquiryData {
   address:           string;
   phone:             string;
   contactPreference: ContactPreference | null;
+  referralSource:    string | null;
 }
 
 export interface JobUpdate {
@@ -81,6 +82,7 @@ const blank: InquiryData = {
   address:           "",
   phone:             "",
   contactPreference: null,
+  referralSource:    null,
 };
 
 const AppContext = createContext<AppContextValue | null>(null);

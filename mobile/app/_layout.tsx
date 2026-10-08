@@ -352,6 +352,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)"     />
             <Stack.Screen name="inquiry"    options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="auth"       options={{ animation: "slide_from_bottom" }} />
+            <Stack.Screen name="auth/callback" options={{ animation: "none" }} />
             <Stack.Screen name="job"        options={{ animation: "slide_from_right" }} />
           </Stack>
         </AppBootstrap>

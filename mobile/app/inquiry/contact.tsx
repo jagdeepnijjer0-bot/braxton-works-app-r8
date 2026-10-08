@@ -65,7 +65,7 @@ export default function ContactScreen() {
     }).catch(() => {});
   }, []);
 
-  const canContinue = inquiry.name.trim() && inquiry.address.trim() && inquiry.phone.trim() && inquiry.contactPreference;
+  const canContinue = inquiry.name.trim() && inquiry.address.trim() && inquiry.phone.trim() && inquiry.contactPreference && inquiry.referralSource;
 
   const handleSubmit = async () => {
     if (!canContinue || loading) return;
@@ -105,9 +105,10 @@ export default function ContactScreen() {
             description: inquiry.description,
             address:     inquiry.address,
             status:      "Enquiry Received",
-            timing:      inquiry.timing,
-            chosen_date: inquiry.chosenDate,
-            source:      "app",
+            timing:          inquiry.timing,
+            chosen_date:     inquiry.chosenDate,
+            referral_source: inquiry.referralSource || null,
+            source:          "app",
           }),
           TIMEOUT_MS
         );
@@ -281,6 +282,28 @@ export default function ContactScreen() {
           })}
         </View>
 
+        {/* WHERE DID YOU FIND US */}
+        <View style={{ marginTop: 24, marginBottom: 10 }}>
+          <Text style={styles.fieldLabel}>WHERE DID YOU FIND US?</Text>
+          <View style={styles.referralGrid}>
+            {(["Word of Mouth", "Google Search", "Instagram", "Facebook", "LinkedIn", "Leaflet / Flyer"] as const).map((opt) => {
+              const isSelected = inquiry.referralSource === opt;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.referralChip, isSelected && styles.referralChipSelected]}
+                  onPress={() => setInquiry({ ...inquiry, referralSource: opt })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.referralChipText, isSelected && styles.referralChipTextSelected]}>
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* REMEMBER ME */}
         <TouchableOpacity
           style={styles.rememberRow}
@@ -355,6 +378,30 @@ const styles = StyleSheet.create({
   prefLabel:           { color: colors.slate, fontSize: 11, fontWeight: "600", textAlign: "center" },
   prefLabelSelected:   { color: colors.navy },
 
+  referralGrid: {
+    flexDirection:  "row",
+    flexWrap:       "wrap",
+    gap:            10,
+    marginTop:      2,
+  },
+  referralChip: {
+    backgroundColor:   colors.white,
+    borderRadius:      20,
+    paddingHorizontal: 16,
+    paddingVertical:   10,
+    shadowColor:       "#000",
+    shadowOpacity:     0.07,
+    shadowRadius:      6,
+    shadowOffset:      { width: 0, height: 2 },
+    elevation:         2,
+  },
+  referralChipSelected: {
+    backgroundColor: colors.amber,
+    shadowColor:     colors.amber,
+    shadowOpacity:   0.3,
+  },
+  referralChipText:         { color: colors.slate, fontSize: 13, fontWeight: "600" },
+  referralChipTextSelected: { color: colors.navy },
   rememberRow: {
     flexDirection:  "row",
     alignItems:     "center",
