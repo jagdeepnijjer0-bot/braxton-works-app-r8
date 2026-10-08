@@ -239,7 +239,7 @@ export default function SignInScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Logo size={52} style={{ alignSelf: "center", marginBottom: 28 }} />
 
-        <Text style={styles.title}>Welcome{"\n"}back</Text>
+        <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.sub}>Sign in to track your jobs and messages</Text>
 
         <View style={{ marginBottom: 18 }}>

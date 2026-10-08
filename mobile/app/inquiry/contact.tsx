@@ -201,7 +201,7 @@ export default function ContactScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Your contact{"\n"}details</Text>
+        <Text style={styles.title}>Your contact details</Text>
         <Text style={styles.sub}>How can we reach you?</Text>
 
         {/* NAME */}

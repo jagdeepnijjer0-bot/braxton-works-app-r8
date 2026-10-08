@@ -82,7 +82,7 @@ export default function DescriptionScreen() {
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>
-          {inquiry.type === "issue" ? "Describe the\nissue" : "Describe the\nproject"}
+          {inquiry.type === "issue" ? "Describe the issue" : "Describe the project"}
         </Text>
         <Text style={styles.sub}>The more detail, the better</Text>
 

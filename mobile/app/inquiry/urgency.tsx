@@ -30,7 +30,7 @@ export default function UrgencyScreen() {
       </TouchableOpacity>
 
       <View style={styles.content}>
-        <Text style={styles.title}>When do you{"\n"}need this done?</Text>
+        <Text style={styles.title}>When do you need this done?</Text>
         <Text style={styles.sub}>Select your preferred timing</Text>
 
         <View style={styles.options}>

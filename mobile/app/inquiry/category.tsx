@@ -58,7 +58,7 @@ export default function CategoryScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>
-          {isIssue ? "What type of\nissue?" : "What are you\nlooking for?"}
+          {isIssue ? "What type of issue?" : "What are you looking for?"}
         </Text>
         <Text style={styles.sub}>Select a category</Text>
 
