@@ -4,13 +4,13 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ShieldCheck, Zap, Star, Wrench, Settings, HardHat, Sparkles } from "lucide-react-native";
 import { colors } from "@/lib/colors";
 import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/Button";
-import { Logo } from "@/components/ui/Logo";
 
 const trustSignals = [
   { icon: ShieldCheck, label: "Verified\nContractors" },
@@ -37,7 +37,7 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Logo size={52} />
+          <Image source={require("@/assets/images/logo.png")} style={{ width: 52, height: 52, borderRadius: 15 }} />
           <View style={styles.headerText}>
             <Text style={styles.appName}>TradeNest</Text>
             <Text style={styles.appSub}>Repairs, Maintenance &amp; Builds</Text>
