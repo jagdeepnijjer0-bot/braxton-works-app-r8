@@ -37,7 +37,11 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Image source={require("@/assets/images/logo.png")} style={{ width: 52, height: 52, borderRadius: 15 }} resizeMode="cover" />
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={{ width: 52, height: 52 }}
+            resizeMode="contain"
+          />
           <View style={styles.headerText}>
             <Text style={styles.appName}>TradeNest</Text>
             <Text style={styles.appSub}>Repairs, Maintenance &amp; Builds</Text>
