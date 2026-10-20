@@ -51,6 +51,8 @@ interface AdminJob {
   actual_value: number | null
   assigned_to: string | null
   source: string | null
+  guest_email?: string | null
+  tracking?: Record<string, string | boolean> | null
   sheets_row_index: number | null
   job_photos: JobPhoto[]
   job_updates: JobUpdate[]
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
   const [loading, setLoading]         = useState(true)
   const [selectedJob, setSelectedJob] = useState<AdminJob | null>(null)
   const [filter, setFilter]           = useState<FilterStatus>("all")
+  const [sourceFilter, setSourceFilter] = useState<"all" | "app" | "web">("all")
   const [search, setSearch]           = useState("")
   const [saving, setSaving]           = useState(false)
   const [activePanel, setActivePanel] = useState<"details" | "messages">("details")
@@ -205,7 +208,8 @@ export default function AdminDashboard() {
   }
 
   const filteredJobs = jobs.filter((j) => {
-    const ok = filter === "all" || j.status === filter
+    const ok = (filter === "all" || j.status === filter) &&
+      (sourceFilter === "all" || (j.source ?? "app") === sourceFilter)
     const q  = search.toLowerCase()
     return ok && (
       j.customer_name.toLowerCase().includes(q) ||
@@ -284,6 +288,12 @@ export default function AdminDashboard() {
                 {JOURNEY_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
                 <option value="Cancelled">Cancelled</option>
               </select>
+              <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value as "all" | "app" | "web")}
+                className="px-3 py-2.5 rounded-lg input-field focus:outline-none">
+                <option value="all">All sources</option>
+                <option value="app">App</option>
+                <option value="web">Web</option>
+              </select>
             </div>
           </div>
 
@@ -299,7 +309,7 @@ export default function AdminDashboard() {
               <table className="w-full">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
-                    {["Customer","Type","Category","Status","Date",""].map((h) => (
+                    {["Customer","Type","Source","Category","Status","Date",""].map((h) => (
                       <th key={h} className="text-left px-4 py-3 text-sm font-medium text-[#64748B]">{h}</th>
                     ))}
                   </tr>
@@ -323,6 +333,12 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-[#64748B] capitalize">{job.type}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn("inline-flex px-2.5 py-1 rounded-full text-xs font-medium",
+                            job.source === "web" ? "bg-[#FEF3C7] text-[#92400E]" : "bg-[#F1F5F9] text-[#475569]")}>
+                            {job.source === "web" ? "Web" : "App"}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-[#0F172A]">{job.category}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex px-2.5 py-1 rounded-full text-xs font-medium", cls)}>
@@ -433,9 +449,25 @@ export default function AdminDashboard() {
                   {[
                     { label: "Customer",  value: selectedJob.customer_name },
                     { label: "Phone",     value: selectedJob.customer_phone || "—" },
-                    { label: "Contact",   value: selectedJob.customer_contact_preference || "—" },
-                    { label: "Address",   value: selectedJob.address },
+                    { label: "Contact",   value: selectedJob.customer_contact_preference || (selectedJob.source === "web" ? "phone" : "in-app") },
+                    ...(selectedJob.guest_email ? [{ label: "Email", value: selectedJob.guest_email }] : []),
+                    { label: selectedJob.source === "web" ? "Postcode" : "Address", value: selectedJob.address },
                     { label: "Category",  value: selectedJob.category },
+                    { label: "Source",    value: selectedJob.source === "web" ? "Web form" : "App" },
+                    ...(selectedJob.tracking && Object.keys(selectedJob.tracking).length > 0
+                      ? [{
+                          label: "Campaign",
+                          value: [
+                            selectedJob.tracking.utm_source,
+                            selectedJob.tracking.utm_medium,
+                            selectedJob.tracking.utm_campaign,
+                            selectedJob.tracking.utm_content,
+                          ].filter(Boolean).join(" / ") || "Direct or untagged",
+                        }]
+                      : []),
+                    ...(selectedJob.tracking?.outside_cv === true
+                      ? [{ label: "Area note", value: `Outside CV postcodes (${selectedJob.tracking.postcode_area ?? "unknown"})` }]
+                      : []),
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-xs text-[#64748B] uppercase tracking-wide mb-0.5">{label}</p>

@@ -15,6 +15,7 @@ export async function GET() {
         timing, chosen_date, created_at, updated_at,
         estimated_value, actual_value, source, assigned_to, sheets_row_index,
         user_id, guest_name, guest_phone, guest_contact_preference,
+        guest_email, tracking,
         job_photos ( url, storage_path ),
         job_updates ( id, message, type, created_at )
       `)
